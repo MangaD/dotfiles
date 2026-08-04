@@ -1,0 +1,33 @@
+# User identity used for commits.
+[user]
+    name = David Gonçalves
+    email = 11088596+MangaD@users.noreply.github.com
+
+# Default text editor used by Git.
+[core]
+    editor = vim
+
+# Use "main" as the initial branch for new repositories.
+[init]
+    defaultBranch = main
+
+# Automatically set the upstream when pushing a new branch for the first time.
+[push]
+    autoSetupRemote = true
+
+# Shortcuts for frequently used commands.
+[alias]
+    # Compact, decorated commit graph for all branches.
+    graph = log --oneline --all --decorate --graph
+
+    # Short branch-aware status.
+    st = status -sb
+
+    # Force push only if the remote branch has not changed unexpectedly.
+    pfwl = push --force-with-lease
+
+    # Create a commit with an inline message.
+    cm = commit -m
+
+    # Amend the previous commit without changing its message.
+    ca = commit --amend --no-edit
