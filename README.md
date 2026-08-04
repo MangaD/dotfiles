@@ -1,6 +1,6 @@
 # dotfiles
 
-Personal Linux configuration files for Bash, Vim, Git, tmux, and SSH.
+Personal Linux configuration files for Bash, Git, SSH, tmux, and Vim.
 
 The configurations are organized into packages and managed using [GNU Stow](https://www.gnu.org/software/stow/).
 
@@ -8,6 +8,8 @@ The configurations are organized into packages and managed using [GNU Stow](http
 
 ```text
 dotfiles/
+├── .gitignore
+├── README.md
 ├── bash/
 │   └── .bashrc
 ├── git/
@@ -21,7 +23,7 @@ dotfiles/
     └── .vimrc
 ```
 
-Each directory is a Stow package that mirrors the file's location relative to the home directory.
+Each directory is a GNU Stow package whose contents mirror their location relative to the home directory.
 
 For example:
 
@@ -35,14 +37,7 @@ vim/.vimrc         → ~/.vimrc
 
 ## Installation
 
-### 1. Clone the repository
-
-```bash
-git clone <repository-url> ~/dotfiles
-cd ~/dotfiles
-```
-
-### 2. Install GNU Stow
+### 1. Install GNU Stow
 
 On Debian/Ubuntu:
 
@@ -62,121 +57,309 @@ On Arch Linux:
 sudo pacman -S stow
 ```
 
-### 3. Create the symlinks
+### 2. Clone the repository
 
-Install all configurations:
-
-```bash
-stow bash git ssh tmux vim
-```
-
-Or install individual configurations:
+Clone the repository into the home directory:
 
 ```bash
-stow bash
-stow vim
-```
-
-By default, Stow creates the appropriate symbolic links in the parent directory (`$HOME` when the repository is located at `~/dotfiles`).
-
-## Existing Configuration
-
-Stow will not overwrite conflicting files automatically.
-
-Before using Stow, existing configuration files should be backed up or moved into this repository.
-
-For example:
-
-```bash
-mkdir -p ~/dotfiles/bash
-mv ~/.bashrc ~/dotfiles/bash/
-```
-
-After moving the file:
-
-```bash
+git clone <repository-url> ~/dotfiles
 cd ~/dotfiles
-stow bash
 ```
 
-The resulting setup will look like:
+Replace `<repository-url>` with the URL of this repository.
+
+### 3. Handle existing configuration
+
+GNU Stow will not overwrite conflicting files automatically.
+
+If configuration files already exist, move them into the corresponding package in this repository before creating the symbolic links.
+
+For example, for an existing `.bashrc`:
+
+```bash
+mv ~/.bashrc ~/dotfiles/bash/.bashrc
+```
+
+Do the same for any other configuration that should be managed by this repository.
+
+Be especially careful with `~/.ssh/`: only the SSH configuration belongs in this repository. Private keys and other SSH files should remain in `~/.ssh/`.
+
+### 4. Create the symbolic links
+
+Install all packages:
+
+```bash
+stow --no-folding bash git ssh tmux vim
+```
+
+Or install packages individually:
+
+```bash
+stow --no-folding bash
+stow --no-folding git
+```
+
+`--no-folding` makes Stow create links for the individual managed files and directories rather than replacing an entire directory with a symbolic link.
+
+This is particularly useful for directories such as `~/.ssh/`, which contain files that are intentionally not managed by this repository.
+
+After installation, the configuration files in the home directory will point to the files in this repository:
 
 ```text
-~/.bashrc → ~/dotfiles/bash/.bashrc
+~/.bashrc       → ~/dotfiles/bash/.bashrc
+~/.gitconfig    → ~/dotfiles/git/.gitconfig
+~/.ssh/config   → ~/dotfiles/ssh/.ssh/config
+~/.tmux.conf    → ~/dotfiles/tmux/.tmux.conf
+~/.vimrc        → ~/dotfiles/vim/.vimrc
 ```
-
-The same process can be used for the other configuration files.
 
 ## Updating
 
-Because the files in `$HOME` are symbolic links, configuration changes are made directly to the files stored in this repository.
+Because the files in the home directory are symbolic links, editing them also edits the files stored in this repository.
 
-Commit and push changes normally:
+Changes can therefore be committed normally:
 
 ```bash
+cd ~/dotfiles
+
+git status
 git add .
 git commit -m "Update configuration"
 git push
 ```
 
-After cloning the repository onto another machine, running Stow recreates the required symbolic links.
+When the repository is cloned onto another machine, running Stow recreates the required symbolic links.
 
 ## Removing Configuration
 
-Remove the symbolic links for a package without deleting the files from this repository:
+Remove the symbolic links for a package without deleting its files from the repository:
 
 ```bash
-stow --delete bash
+stow --delete --no-folding bash
 ```
 
-Recreate a package's links:
+Recreate the links for a package:
 
 ```bash
-stow --restow bash
+stow --restow --no-folding bash
 ```
 
-## SSH Configuration
+This can be useful after changing the structure of a package.
 
-Only SSH configuration is tracked. **Private keys and credentials should never be committed to this repository.**
+## Machine-Specific Configuration
 
-Files such as the following should remain outside version control:
+Some configuration should apply only to a particular machine or should not be stored in a public repository.
+
+Files ending in `.local` are ignored by Git and can be used for this purpose.
+
+### Bash
+
+The tracked `.bashrc` automatically loads:
 
 ```text
-~/.ssh/id_rsa
-~/.ssh/id_ed25519
-~/.ssh/*.pem
+~/.bashrc.local
 ```
 
-Machine-specific or sensitive SSH settings can be placed in a separate file:
+when the file exists.
+
+This file can contain machine-specific paths, environment variables, aliases, or other settings that should not be shared between machines.
+
+For example:
+
+```bash
+export SOME_LOCAL_PATH="$HOME/something"
+alias local-command='...'
+```
+
+### SSH
+
+The tracked SSH configuration loads:
 
 ```text
 ~/.ssh/config.local
 ```
 
-and loaded from the tracked configuration with:
+using:
 
 ```sshconfig
 Include ~/.ssh/config.local
 ```
 
-This keeps hostnames, usernames, addresses, and other machine-specific information out of the repository when necessary.
+This file can contain machine-specific or private SSH host definitions.
 
-## Future Additions
+For example:
 
-Other configuration files may be added as needed, including:
+```sshconfig
+Host server
+    HostName 192.168.1.10
+    User user
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+```
 
-* `.bash_profile` — Bash login shell configuration
+The host can then be accessed with:
+
+```bash
+ssh server
+```
+
+Hostnames, usernames, and IP addresses are not inherently secrets and may be placed in the tracked configuration when appropriate. `config.local` is useful when those details are private or specific to one machine.
+
+## Sensitive Information
+
+Credentials and secrets must never be committed to this repository.
+
+In particular, do not commit:
+
+* SSH private keys
+* Passwords
+* API keys
+* Access tokens
+* Authentication credentials
+* Private certificates
+
+SSH private keys such as:
+
+```text
+~/.ssh/id_rsa
+~/.ssh/id_ed25519
+```
+
+must remain outside the repository.
+
+Public SSH keys are not secret, but they are also not managed by this repository.
+
+The repository is intended to manage **configuration**, not credentials.
+
+## Configuration Overview
+
+### Bash
+
+`bash/.bashrc` contains interactive Bash configuration, including:
+
+* Shell history settings
+* Persistent history behavior
+* Vim as the default terminal editor
+* Support for machine-specific settings through `~/.bashrc.local`
+
+Additional aliases or shell behavior should be added only when they are actually useful.
+
+### Git
+
+`git/.gitconfig` contains:
+
+* Git user identity
+* Vim as the default Git editor
+* `main` as the default initial branch
+* Automatic upstream configuration for new branches
+* Frequently used Git aliases
+
+### SSH
+
+`ssh/.ssh/config` contains:
+
+* Connection keepalive settings
+* SSH agent integration
+* Support for machine-specific configuration through `~/.ssh/config.local`
+
+Private keys are not managed by this repository.
+
+### tmux
+
+`tmux/.tmux.conf` contains terminal multiplexer configuration, including:
+
+* Mouse support
+* Clipboard integration
+* Extended scrollback history
+* Window and pane numbering
+* Automatic window renumbering
+* Pane behavior
+* Improved responsiveness
+* Vim-style copy-mode navigation
+* Configuration reloading
+
+### Vim
+
+`vim/.vimrc` contains editor configuration, including:
+
+* Filetype detection and indentation
+* Syntax highlighting
+* Search behavior
+* Tab and indentation settings
+* Visible whitespace
+* Persistent undo
+* Completion behavior
+* Scrolling behavior
+* C/C++ indentation
+* Terminal color support
+* Line-number and whitespace highlighting
+
+Historical settings that are currently disabled are kept commented out for reference.
+
+## Adding New Configuration
+
+When adding another configuration file, create a new Stow package whose contents mirror the path relative to the home directory.
+
+For example, to manage:
+
+```text
+~/.inputrc
+```
+
+create:
+
+```text
+dotfiles/
+└── readline/
+    └── .inputrc
+```
+
+Then install it with:
+
+```bash
+stow --no-folding readline
+```
+
+For an application using `~/.config/`, mirror that directory structure.
+
+For example:
+
+```text
+~/.config/example/config
+```
+
+would become:
+
+```text
+dotfiles/
+└── example/
+    └── .config/
+        └── example/
+            └── config
+```
+
+and could then be installed with:
+
+```bash
+stow --no-folding example
+```
+
+## Possible Future Additions
+
+Configuration that may be useful to manage in the future includes:
+
+* `.bash_profile` — Bash login-shell configuration
 * `.profile` — login environment configuration
 * `.inputrc` — GNU Readline configuration
-* `~/.config/nvim/` — Neovim configuration
-* `~/.config/systemd/user/` — user-level systemd services
 * `~/.local/bin/` — personal scripts and commands
+* `~/.config/systemd/user/` — user-level systemd services
 * Terminal emulator configuration
-* Shell prompt configuration
 * Other application configuration under `~/.config/`
 
-Only configurations that are actively used need to be added.
+These should only be added when they are actually needed.
 
-## License
+## Philosophy
 
-These files are primarily intended for personal use, but feel free to use or adapt anything that is useful.
+Keep the configuration small, understandable, and intentional.
+
+Every setting in this repository should have a clear purpose. New configuration should be added when it solves a real problem or improves an established workflow, rather than simply because it is a commonly recommended setting.
