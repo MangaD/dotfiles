@@ -48,6 +48,21 @@ export VISUAL=vim
 
 
 # =============================================================================
+# Tool compatibility
+# =============================================================================
+
+# Debian and Ubuntu package `bat` under the executable name `batcat`, while
+# other distributions commonly provide it as `bat`.
+#
+# If `bat` does not already exist but `batcat` does, provide the conventional
+# `bat` command as an alias. This keeps the same command usable across Linux
+# distributions without overriding a native `bat` executable.
+if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
+    alias bat='batcat'
+fi
+
+
+# =============================================================================
 # Machine-specific configuration
 # =============================================================================
 

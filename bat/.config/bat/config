@@ -1,0 +1,8 @@
+# Show line numbers and Git modifications.
+--style=numbers,changes
+
+# Use the terminal's available colors.
+--color=auto
+
+# Use paging only when the output does not fit on screen.
+--paging=auto

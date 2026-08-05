@@ -12,6 +12,10 @@ dotfiles/
 ├── README.md
 ├── bash/
 │   └── .bashrc
+├── bat/
+│   └── .config/
+│       └── bat/
+│           └── config
 ├── git/
 │   └── .gitconfig
 ├── ssh/
@@ -89,7 +93,7 @@ Be especially careful with `~/.ssh/`: only the SSH configuration belongs in this
 Install all packages:
 
 ```bash
-stow --no-folding bash git ssh tmux vim
+stow --no-folding bash bat git ssh tmux vim
 ```
 
 Or install packages individually:
@@ -240,9 +244,19 @@ The repository is intended to manage **configuration**, not credentials.
 * Shell history settings
 * Persistent history behavior
 * Vim as the default terminal editor
+* Compatibility aliases for tools whose command names differ between distributions
 * Support for machine-specific settings through `~/.bashrc.local`
 
 Additional aliases or shell behavior should be added only when they are actually useful.
+
+### Bat
+
+`bat/.config/bat/config` contains configuration for `bat`, a syntax-highlighting
+file viewer.
+
+On Debian and Ubuntu, the executable may be installed as `batcat`. The Bash
+configuration provides a `bat` alias when `batcat` is installed but `bat` is
+not available.
 
 ### Git
 
@@ -343,6 +357,23 @@ and could then be installed with:
 ```bash
 stow --no-folding example
 ```
+
+## Tools
+
+This repository configures or makes use of the following command-line tools:
+
+- Bash — interactive shell
+- Git — version control
+- OpenSSH — SSH client
+- tmux — terminal multiplexer
+- Vim — text editor
+- GNU Stow — dotfile symlink management
+- bat — syntax-highlighting file viewer
+- Git LFS — large-file support for Git
+
+The repository manages configuration for these tools, but does not install
+them. Package names and installation methods may differ between Linux
+distributions.
 
 ## Possible Future Additions
 
