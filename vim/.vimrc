@@ -47,6 +47,68 @@ set clipboard=unnamedplus
 
 
 " =============================================================================
+" Mappings
+" =============================================================================
+
+" -----------------------------------------------------------------------------
+" Move lines
+" -----------------------------------------------------------------------------
+
+" Move the current line down or up.
+"
+" Two equivalent sets of shortcuts are provided:
+"
+"     Alt+j       Move down
+"     Alt+k       Move up
+"
+"     Alt+Down    Move down
+"     Alt+Up      Move up
+"
+" The Vim-style j/k mappings are convenient when keeping your hands on the
+" normal movement keys, while the arrow-key mappings provide a more intuitive
+" alternative.
+"
+" :move .+1
+"     Moves the current line below the following line.
+"
+" :move .-2
+"     Moves the current line above the preceding line.
+"
+" == reindents the moved line according to the indentation rules for the
+" current file.
+nnoremap <A-j>    :move .+1<CR>==
+nnoremap <A-k>    :move .-2<CR>==
+nnoremap <A-Down> :move .+1<CR>==
+nnoremap <A-Up>   :move .-2<CR>==
+
+
+" Move a visually selected block of lines down or up.
+"
+" The same shortcuts used in Normal mode work while lines are selected:
+"
+"     Alt+j       Move selection down
+"     Alt+k       Move selection up
+"
+"     Alt+Down    Move selection down
+"     Alt+Up      Move selection up
+"
+" '> and '< refer to the last and first lines of the visual selection.
+"
+" After moving the lines:
+"
+"     gv    restores the visual selection
+"     =     reindents the selected lines
+"     gv    restores the selection again
+"
+" Keeping the lines selected makes it possible to press the shortcut repeatedly
+" to continue moving the entire block.
+vnoremap <A-j>    :move '>+1<CR>gv=gv
+vnoremap <A-k>    :move '<-2<CR>gv=gv
+vnoremap <A-Down> :move '>+1<CR>gv=gv
+vnoremap <A-Up>   :move '<-2<CR>gv=gv
+
+
+" =============================================================================
 " Searching
 " =============================================================================
 
