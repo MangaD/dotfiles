@@ -247,6 +247,7 @@ The repository is intended to manage **configuration**, not credentials.
 * Compatibility aliases for tools whose command names differ between distributions
 * Automatic attachment to the most recently active tmux session when logging in through SSH
 * Support for machine-specific settings through `~/.bashrc.local`
+*  Adds `~/.local/bin` to `PATH` when the directory exists, allowing programs to be installed for the current user without requiring root privileges. User executables take precedence over equivalent system-wide executables.
 
 Additional aliases or shell behavior should be added only when they are actually useful.
 

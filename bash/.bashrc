@@ -47,6 +47,23 @@ export EDITOR=vim
 export VISUAL=vim
 
 
+# -----------------------------------------------------------------------------
+# User executables
+# -----------------------------------------------------------------------------
+
+# Add the standard per-user executable directory to PATH when it exists.
+#
+# ~/.local/bin is commonly used for programs installed manually for the current
+# user. Keeping them here avoids requiring root privileges and keeps
+# user-installed software separate from system packages.
+#
+# Placing it before the existing PATH also means a user-installed version of a
+# program takes precedence over the system-wide version with the same name.
+if [[ -d "$HOME/.local/bin" ]]; then
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+
 # =============================================================================
 # Tool compatibility
 # =============================================================================
