@@ -73,3 +73,51 @@ fi
 if [[ -f ~/.bashrc.local ]]; then
     source ~/.bashrc.local
 fi
+
+
+# =============================================================================
+# tmux over SSH
+# =============================================================================
+
+# Automatically attach to the most recently active tmux session when logging in
+# through SSH.
+#
+# This only runs when:
+#
+#   - The shell was started through SSH.
+#   - tmux is installed.
+#   - We are not already inside a tmux session.
+#
+# If one or more tmux sessions already exist, the session with the most recent
+# activity is selected and attached.
+#
+# If no tmux session exists, a new one is created.
+#
+# `exec` replaces the current Bash process with tmux. When the tmux session is
+# eventually exited, the SSH connection therefore closes rather than leaving
+# an additional Bash shell behind.
+
+if [[ -n "$SSH_CONNECTION" ]] \
+    && [[ -z "$TMUX" ]] \
+    && command -v tmux >/dev/null 2>&1
+then
+    # Find the most recently active tmux session.
+    #
+    # `session_activity` is a timestamp maintained by tmux.
+    # `sort -nr` orders sessions from newest to oldest.
+    # `head -n 1` selects the most recently active session.
+    last_session="$(
+        tmux list-sessions -F '#{session_activity} #{session_name}' 2>/dev/null \
+            | sort -nr \
+            | head -n 1 \
+            | cut -d' ' -f2-
+    )"
+
+    if [[ -n "$last_session" ]]; then
+        # Reattach to the most recently active existing session.
+        exec tmux attach-session -t "$last_session"
+    else
+        # No tmux server/session exists yet, so create a new session.
+        exec tmux new-session
+    fi
+fi

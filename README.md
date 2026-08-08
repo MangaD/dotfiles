@@ -245,9 +245,17 @@ The repository is intended to manage **configuration**, not credentials.
 * Persistent history behavior
 * Vim as the default terminal editor
 * Compatibility aliases for tools whose command names differ between distributions
+* Automatic attachment to the most recently active tmux session when logging in through SSH
 * Support for machine-specific settings through `~/.bashrc.local`
 
 Additional aliases or shell behavior should be added only when they are actually useful.
+
+When logging in through SSH, Bash automatically attaches to the most recently
+active tmux session. If no tmux session exists, a new one is created.
+
+This behavior only applies to interactive SSH sessions when tmux is installed
+and the shell is not already running inside tmux. Exiting tmux also ends the
+SSH session.
 
 ### Bat
 
