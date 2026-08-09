@@ -1,4 +1,30 @@
 -- =============================================================================
+-- Leader keys
+-- =============================================================================
+
+-- Use Space as the main leader key.
+--
+-- The leader key acts as a prefix for custom shortcuts, allowing related
+-- commands to be grouped under memorable key sequences.
+--
+-- For example:
+--
+--     Space + r + n    Rename symbol
+--     Space + c + a    Code action
+--
+-- The leader key should be configured before plugins and mappings are loaded so
+-- every `<leader>` mapping consistently resolves to Space.
+vim.g.mapleader = " "
+
+-- Use Space as the local leader key as well.
+--
+-- `<localleader>` is intended for mappings that apply only to a particular
+-- filetype, buffer, or plugin. We do not currently use it, but defining it now
+-- keeps future mappings predictable.
+vim.g.maplocalleader = " "
+
+
+-- =============================================================================
 -- Clipboard
 -- =============================================================================
 
@@ -155,6 +181,59 @@ vim.keymap.set("v", "<A-j>", ":move '>+1<CR>gv=gv")
 vim.keymap.set("v", "<A-k>", ":move '<-2<CR>gv=gv")
 vim.keymap.set("v", "<A-Down>", ":move '>+1<CR>gv=gv")
 vim.keymap.set("v", "<A-Up>", ":move '<-2<CR>gv=gv")
+
+
+-- -----------------------------------------------------------------------------
+-- Saving
+-- -----------------------------------------------------------------------------
+
+-- Save the current file using the familiar Ctrl+s shortcut.
+--
+-- The mapping is available in Normal, Insert, and Visual modes:
+--
+--     Ctrl+s    Save current file
+--
+-- In Insert mode, the file is saved without permanently leaving Insert mode.
+-- In Visual mode, the selection remains active after saving.
+--
+-- Note:
+-- Some terminals use Ctrl+s for XON/XOFF software flow control. If Ctrl+s
+-- appears to freeze the terminal instead of reaching Neovim, check whether
+-- flow control is enabled with:
+--
+--     stty -a
+--
+-- If `ixon` is enabled, it can be disabled for the current terminal with:
+--
+--     stty -ixon
+--
+-- Ctrl+q traditionally resumes terminal output when XON/XOFF flow control is
+-- enabled. Do not disable flow control globally unless it actually interferes
+-- with the mapping in the terminal environment being used.
+
+-- Normal mode: save the current file.
+vim.keymap.set(
+    "n",
+    "<C-s>",
+    "<cmd>write<CR>",
+    { desc = "Save file" }
+)
+
+-- Insert mode: save without permanently leaving Insert mode.
+vim.keymap.set(
+    "i",
+    "<C-s>",
+    "<C-o><cmd>write<CR>",
+    { desc = "Save file" }
+)
+
+-- Visual mode: save and restore the current Visual selection.
+vim.keymap.set(
+    "v",
+    "<C-s>",
+    "<cmd>write<CR>gv",
+    { desc = "Save file" }
+)
 
 
 -- =============================================================================
@@ -786,6 +865,32 @@ require("lazy").setup({
         end,
     },
 
+
+    -- -----------------------------------------------------------------------------
+    -- Language Server Protocol
+    -- -----------------------------------------------------------------------------
+
+    {
+        "neovim/nvim-lspconfig",
+
+        config = function()
+            -- Enable the clangd configuration provided by nvim-lspconfig.
+            --
+            -- clangd provides C and C++ language intelligence including:
+            --
+            --   - diagnostics
+            --   - go to definition
+            --   - references
+            --   - hover documentation
+            --   - symbol renaming
+            --   - code actions
+            --
+            -- The clangd executable must be installed separately and available in
+            -- PATH. Neovim does not install language servers itself.
+            vim.lsp.enable("clangd")
+        end,
+    },
+
 })
 
 
@@ -1093,5 +1198,103 @@ vim.api.nvim_create_autocmd("FileType", {
         -- A compatible parser exists, so enable Tree-sitter highlighting for
         -- this buffer.
         vim.treesitter.start(args.buf, language)
+    end,
+})
+
+
+-- =============================================================================
+-- Language Server Protocol
+-- =============================================================================
+
+-- Configure mappings whenever an LSP server attaches to a buffer.
+--
+-- Making these mappings buffer-local means they only exist where an LSP
+-- server is actually available.
+vim.api.nvim_create_autocmd("LspAttach", {
+    callback = function(args)
+        local opts = {
+            buffer = args.buf,
+        }
+
+
+        -- ---------------------------------------------------------------------
+        -- Navigation
+        -- ---------------------------------------------------------------------
+
+        -- Go to the definition of the symbol under the cursor.
+        --
+        --     gd    Go to definition
+        vim.keymap.set(
+            "n",
+            "gd",
+            vim.lsp.buf.definition,
+            vim.tbl_extend("force", opts, {
+                desc = "Go to definition",
+            })
+        )
+
+        -- Find all references to the symbol under the cursor.
+        --
+        -- Results are shown using Neovim's location/quickfix interface.
+        --
+        --     gr    Find references
+        vim.keymap.set(
+            "n",
+            "gr",
+            vim.lsp.buf.references,
+            vim.tbl_extend("force", opts, {
+                desc = "Find references",
+            })
+        )
+
+
+        -- ---------------------------------------------------------------------
+        -- Information
+        -- ---------------------------------------------------------------------
+
+        -- Display documentation and type information for the symbol under the
+        -- cursor.
+        --
+        --     K    Hover documentation
+        vim.keymap.set(
+            "n",
+            "K",
+            vim.lsp.buf.hover,
+            vim.tbl_extend("force", opts, {
+                desc = "Hover documentation",
+            })
+        )
+
+
+        -- ---------------------------------------------------------------------
+        -- Refactoring
+        -- ---------------------------------------------------------------------
+
+        -- Rename the symbol under the cursor throughout the project.
+        --
+        --     Space + r + n
+        vim.keymap.set(
+            "n",
+            "<leader>rn",
+            vim.lsp.buf.rename,
+            vim.tbl_extend("force", opts, {
+                desc = "Rename symbol",
+            })
+        )
+
+        -- Show code actions available at the current cursor position.
+        --
+        -- Depending on the language server this may offer actions such as
+        -- applying fixes, adding includes, or performing refactorings.
+        --
+        --     Space + c + a
+        vim.keymap.set(
+            { "n", "v" },
+            "<leader>ca",
+            vim.lsp.buf.code_action,
+            vim.tbl_extend("force", opts, {
+                desc = "Code action",
+            })
+        )
     end,
 })

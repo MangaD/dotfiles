@@ -95,6 +95,7 @@ The configuration provides:
 * Visible whitespace
 * Persistent undo
 * Case-aware searching
+* Familiar `Ctrl+S` saving
 
 Invisible whitespace is displayed using characters such as:
 
@@ -102,6 +103,27 @@ Invisible whitespace is displayed using characters such as:
 ·    spaces
 →    tabs
 ```
+
+### Saving
+
+The current file can be saved using:
+
+```text
+Ctrl+S             Save current file
+```
+
+The shortcut works in Normal, Insert, and Visual modes.
+
+When used from Insert mode, the file is saved without permanently leaving Insert
+mode. When used from Visual mode, the current selection remains active after the
+save.
+
+> **Terminal note:** Some terminals use `Ctrl+S` for XON/XOFF software flow
+> control. If `Ctrl+S` freezes terminal output instead of saving the file, check
+> the terminal settings with `stty -a`. If `ixon` is enabled, it can be disabled
+> for the current terminal with `stty -ixon`. `Ctrl+Q` traditionally resumes
+> output when software flow control is enabled.
+
 
 ### Indentation detection
 
