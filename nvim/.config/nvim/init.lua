@@ -1296,5 +1296,26 @@ vim.api.nvim_create_autocmd("LspAttach", {
                 desc = "Code action",
             })
         )
+
+        -- ---------------------------------------------------------------------
+        -- Completion
+        -- ---------------------------------------------------------------------
+
+        -- Enable Neovim's built-in LSP completion for the current buffer.
+        --
+        -- Completion suggestions are provided by the attached language server.
+        -- For C and C++, this means clangd.
+        --
+        -- Completion is integrated with Neovim's normal Insert-mode completion
+        -- menu rather than using a separate completion plugin.
+        vim.lsp.completion.enable(
+            true,
+            args.data.client_id,
+            args.buf,
+            {
+                -- Automatically show completion suggestions while typing.
+                autotrigger = true,
+            }
+        )
     end,
 })
