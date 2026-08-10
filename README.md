@@ -20,6 +20,7 @@ dotfiles/
 │       └── bat/
 │           └── config
 ├── git/
+|   ├── .gitattributes
 │   └── .gitconfig
 ├── ssh/
 │   └── .ssh/
@@ -346,7 +347,13 @@ Bash configuration provides a `bat` alias when `batcat` is installed but
 -   Vim as the default Git editor
 -   `main` as the default initial branch
 -   Automatic upstream configuration for new branches
+-   Automatic pruning of remote-tracking branches that no longer exist
+    on the remote
 -   Frequently used Git aliases
+
+`git/.gitattributes` contains:
+
+-   Line-ending normalization for text files
 
 ### SSH
 

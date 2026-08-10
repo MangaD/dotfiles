@@ -15,6 +15,10 @@
 [push]
     autoSetupRemote = true
 
+# Remove remote-tracking branches that no longer exist on the remote.
+[fetch]
+    prune = true
+
 # Shortcuts for frequently used commands.
 [alias]
     # Compact, decorated commit graph for all branches.
@@ -31,3 +35,12 @@
 
     # Amend the previous commit without changing its message.
     ca = commit --amend --no-edit
+
+    # Show the last commit.
+    last = log -1 HEAD --stat
+
+    # Show branches sorted by most recent commit.
+    branches = branch --sort=-committerdate
+
+    # Unstage files.
+    unstage = restore --staged

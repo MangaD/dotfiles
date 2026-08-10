@@ -1,0 +1,17 @@
+# Normalize text files to use LF line endings in the repository, but convert them to CRLF when checking out on Windows.
+* text=auto
+
+# Common binary file types that should not be modified by Git.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+
+# Shell scripts must use LF.
+*.sh text eol=lf
