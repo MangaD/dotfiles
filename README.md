@@ -189,12 +189,18 @@ when the file exists.
 This file can contain machine-specific paths, environment variables,
 aliases, or other settings that should not be shared between machines.
 
-For example:
+For example, a Raspberry Pi with Neovim installed manually under `/opt` can
+contain:
 
 ```bash
-export SOME_LOCAL_PATH="$HOME/something"
-alias local-command='...'
+export PATH="/opt/nvim-linux-arm64/bin:$PATH"
 ```
+
+Other machine-specific paths, environment variables, aliases, and settings can
+be added to the same file as required.
+
+Keeping these settings in `~/.bashrc.local` prevents machine-specific
+configuration from leaking into the portable dotfiles repository.
 
 ### SSH
 
@@ -304,23 +310,52 @@ values are collected independently. ANSI escape sequences in the artwork
 are ignored when calculating its visible width so that the diagnostics
 remain aligned.
 
-`bash/.bashrc` contains interactive Bash configuration, including:
+`bash/.bashrc` contains configuration for interactive Bash shells, including:
 
--   Shell history settings
--   Persistent history behavior
--   Vim as the default terminal editor
--   Compatibility aliases for tools whose command names differ between
-    distributions
--   Automatic attachment to the most recently active tmux session when
-    logging in through SSH
--   Support for machine-specific settings through `~/.bashrc.local`
--   Adds `~/.local/bin` to `PATH` when the directory exists, allowing
-    programs to be installed for the current user without requiring root
-    privileges. User executables take precedence over equivalent
-    system-wide executables.
+* Expanded and persistent shell history
+* Automatic terminal-size updates after terminal, SSH, or tmux resizing
+* Vim as the default terminal editor
+* `~/.local/bin` at the front of `PATH` when that directory exists
+* A colored `user@host:directory` prompt
+* Automatic terminal-title updates in compatible terminals
+* Colorized `ls` and `grep` output when GNU `dircolors` is available
+* Programmable command completion when `bash-completion` is installed
+* Compatibility aliases for tools whose command names differ between distributions
+* C/C++ source inspection using Universal Ctags
+* Support for machine-specific settings through `~/.bashrc.local`
+* Automatic attachment to the most recently active tmux session when logging in through SSH
 
-Additional aliases or shell behavior should be added only when they are
-actually useful.
+The Bash configuration provides a `cppsymbols` helper for inspecting C++ source
+files with Universal Ctags. It lists classes and functions using Ctags'
+human-readable cross-reference output without creating a persistent `tags`
+file.
+
+For example:
+
+```bash
+cppsymbols file.cpp
+cppsymbols include/foo.hpp src/foo.cpp
+cppsymbols src/
+```
+
+Directories are searched recursively. This makes the helper useful both for
+examining individual source files and for getting a quick overview of the
+classes and functions in a larger C++ source tree.
+
+Machine-specific paths should be placed in `~/.bashrc.local` rather than the
+tracked `.bashrc`. For example, a manually installed Neovim on a Raspberry Pi
+can be added with:
+
+```bash
+export PATH="/opt/nvim-linux-arm64/bin:$PATH"
+```
+
+Keeping machine-specific configuration outside the tracked `.bashrc` allows
+the main Bash configuration to remain portable across different Linux
+machines.
+
+Additional aliases, functions, or shell behavior should be added only when
+they solve an actual problem or improve an established workflow.
 
 When logging in through SSH, Bash automatically attaches to the most
 recently active tmux session. If no tmux session exists, a new one is
@@ -455,10 +490,12 @@ This repository configures or makes use of the following command-line
 tools:
 
 -   Bash --- interactive shell
+-   bash-completion --- programmable, command-aware completion for Bash
 -   Git --- version control
 -   OpenSSH --- SSH client
 -   tmux --- terminal multiplexer
 -   Vim --- text editor
+-   Universal Ctags --- source-code indexing and C/C++ symbol discovery
 -   GNU Stow --- dotfile symlink management
 -   bat --- syntax-highlighting file viewer
 -   Git LFS --- large-file support for Git
@@ -468,6 +505,8 @@ tools:
 -   curl --- public-IP and weather lookups used by the login banner
 -   Raspberry Pi `vcgencmd` --- CPU temperature, clock, and throttling
     information
+    used by the `cppsymbols` Bash helper
+
 
 The repository manages configuration for these tools, but does not
 install them. Package names and installation methods may differ between
