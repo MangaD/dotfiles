@@ -72,7 +72,138 @@ On Arch Linux:
 sudo pacman -S stow
 ```
 
-### 2. Clone the repository
+### 2. Install optional dependencies
+
+The dotfiles repository manages configuration but does not install the programs
+that use that configuration.
+
+Only GNU Stow is required to create the symbolic links. The additional tools
+below are required only for the corresponding features.
+
+On Debian and Raspberry Pi OS, most dependencies can be installed with:
+
+```bash
+sudo apt update
+
+sudo apt install \
+    bash-completion \
+    bat \
+    curl \
+    figlet \
+    git \
+    git-lfs \
+    jq \
+    lolcat \
+    screenfetch \
+    tmux \
+    universal-ctags \
+    vim
+```
+
+Some package names or availability may differ between Debian releases and other
+Linux distributions.
+
+#### Bash
+
+The interactive Bash configuration can make use of:
+
+* `bash-completion` — programmable, command-aware shell completion
+* `bat` — syntax-highlighting file viewer
+* Universal Ctags — C/C++ source-code analysis used by `cppsymbols`
+* `jq` — processing, sorting, and formatting of Ctags JSON output
+* `tmux` — automatic persistent terminal sessions for SSH logins
+
+The `cppsymbols`, `cppsyms`, and `cppsymsloc` helpers require both Universal
+Ctags and `jq`.
+
+#### Login banner
+
+The Raspberry Pi login banner can make use of:
+
+* Screenfetch — Raspbian ASCII artwork
+* figlet — large machine-name heading
+* lolcat — colorized figlet output
+* curl — public-IP and weather lookups
+* `vcgencmd` — Raspberry Pi CPU temperature and throttling information
+
+`vcgencmd` is Raspberry Pi-specific and is normally provided by Raspberry Pi
+OS rather than installed as a general dotfiles dependency.
+
+The banner checks for optional commands before using them where appropriate, so
+missing decorative tools do not prevent the shell from starting.
+
+#### Git
+
+Git is required for version control and for cloning this repository.
+
+Git LFS is used when repositories contain files managed through Git Large File
+Storage.
+
+After installing Git LFS for the first time, initialize it with:
+
+```bash
+git lfs install
+```
+
+#### tmux plugins
+
+The tmux configuration uses TPM (Tmux Plugin Manager) to manage its plugins.
+TPM is installed separately rather than through GNU Stow.
+
+Install TPM with:
+
+```bash
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+```
+
+After tmux has been started with the managed `.tmux.conf`, press:
+
+```text
+Prefix + I
+```
+
+With the default prefix:
+
+```text
+Ctrl-b, then Shift-i
+```
+
+TPM will install the plugins declared by the configuration:
+
+* `tmux-plugins/tmux-sensible`
+* `tmux-plugins/tmux-resurrect`
+* `tmux-plugins/tmux-continuum`
+
+The plugin directories under `~/.tmux/plugins/` are installed and managed by
+TPM and should not be committed to this dotfiles repository.
+
+#### Neovim and Tree-sitter
+
+Neovim may be installed separately when a newer version than the distribution
+package is required.
+
+Machine-specific Neovim installation paths should be added to
+`~/.bashrc.local` rather than the tracked `.bashrc`. For example:
+
+```bash
+export PATH="/opt/nvim-linux-arm64/bin:$PATH"
+```
+
+The Neovim Tree-sitter configuration also requires the external tools needed
+to build parsers:
+
+* `tar`
+* `curl`
+* `tree-sitter-cli` 0.26.1 or later
+* A C compiler
+
+`tree-sitter-cli` should be installed through an appropriate package manager
+rather than npm.
+
+These Neovim-specific requirements can be expanded when the Neovim
+configuration is fully documented in this README.
+
+### 3. Clone the repository
 
 Clone the repository into the home directory:
 
@@ -83,7 +214,7 @@ cd ~/dotfiles
 
 Replace `<repository-url>` with the URL of this repository.
 
-### 3. Handle existing configuration
+### 4. Handle existing configuration
 
 GNU Stow will not overwrite conflicting files automatically.
 
@@ -103,7 +234,7 @@ Be especially careful with `~/.ssh/`: only the SSH configuration belongs
 in this repository. Private keys and other SSH files should remain in
 `~/.ssh/`.
 
-### 4. Create the symbolic links
+### 5. Create the symbolic links
 
 Install all packages:
 
@@ -450,18 +581,96 @@ Private keys are not managed by this repository.
 
 ### tmux
 
-`tmux/.tmux.conf` contains terminal multiplexer configuration,
-including:
+`tmux/.tmux.conf` contains terminal multiplexer configuration, including:
 
--   Mouse support
--   Clipboard integration
--   Extended scrollback history
--   Window and pane numbering
--   Automatic window renumbering
--   Pane behavior
--   Improved responsiveness
--   Vim-style copy-mode navigation
--   Configuration reloading
+* Mouse support for selecting panes, resizing panes, selecting windows, and scrolling
+* System clipboard integration
+* Extended per-pane scrollback history
+* Windows and panes numbered from 1
+* Automatic window renumbering
+* New panes opened in the current pane's working directory
+* Reduced Escape-key delay for better Vim and Neovim responsiveness
+* Terminal focus-event reporting
+* Vim-style copy-mode navigation
+* Status-bar configuration
+* A `Prefix + r` shortcut for reloading the configuration without restarting tmux
+
+The configuration uses [TPM](https://github.com/tmux-plugins/tpm), the Tmux
+Plugin Manager, to manage additional tmux functionality.
+
+The following plugins are configured:
+
+* `tmux-plugins/tmux-sensible` — provides a small collection of generally useful tmux defaults
+* `tmux-plugins/tmux-resurrect` — saves and restores tmux sessions, windows, panes, working directories, pane contents, and shell history
+* `tmux-plugins/tmux-continuum` — periodically saves the tmux environment and automatically restores the most recent environment when the tmux server starts
+
+`tmux-resurrect` is configured to capture pane contents and shell command
+history. Vim and Neovim processes are restored using their respective session
+strategies rather than simply starting fresh editor processes.
+
+`tmux-continuum` automatically saves the tmux environment periodically and
+restores the latest saved environment when a new tmux server starts.
+
+Together with the Bash configuration's automatic tmux attachment over SSH,
+this provides a persistent remote shell environment: reconnecting through SSH
+reattaches to an existing tmux session when possible, while tmux-resurrect and
+tmux-continuum can reconstruct saved sessions after the tmux server or machine
+has been restarted.
+
+#### Installing tmux plugins
+
+The tmux configuration uses TPM (Tmux Plugin Manager) to install and manage
+plugins.
+
+After installing the dotfiles on a new machine, install TPM with:
+
+```bash
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+```
+
+Start or reload tmux, then install the configured plugins with:
+
+```text
+Prefix + I
+```
+
+With tmux's default prefix, this means pressing:
+
+```text
+Ctrl-b, then Shift-i
+```
+
+TPM will install the plugins declared in `.tmux.conf`.
+
+Useful TPM shortcuts include:
+
+```text
+Prefix + I          Install plugins
+Prefix + U          Update plugins
+Prefix + Alt-u      Remove plugins no longer declared in .tmux.conf
+```
+
+The tmux configuration itself can be reloaded at any time with:
+
+```text
+Prefix + r
+```
+
+With the default prefix:
+
+```text
+Ctrl-b, then r
+```
+
+`tmux-resurrect` also provides manual persistence shortcuts:
+
+```text
+Prefix + Ctrl-s     Save the current tmux environment
+Prefix + Ctrl-r     Restore the most recently saved environment
+```
+
+Automatic periodic saving and startup restoration are handled by
+`tmux-continuum`.
 
 ### Vim
 
@@ -541,6 +750,10 @@ tools:
 * Git — version control
 * OpenSSH — SSH client
 * tmux — terminal multiplexer
+* TPM — plugin manager for tmux
+* tmux-sensible — sensible baseline defaults for tmux
+* tmux-resurrect — tmux session persistence and restoration
+* tmux-continuum — automatic periodic saving and restoration of tmux sessions
 * Vim — text editor
 * Universal Ctags — source-code indexing and C/C++ symbol discovery used by the `cppsymbols` Bash helper
 * jq — JSON processing used to sort and format `cppsymbols` output
@@ -553,9 +766,10 @@ tools:
 * curl — public-IP and weather lookups used by the login banner
 * Raspberry Pi `vcgencmd` — CPU temperature, clock, and throttling information
 
-The repository manages configuration for these tools, but does not
-install them. Package names and installation methods may differ between
-Linux distributions.
+The repository manages configuration for these tools but does not install them.
+See the **Install optional dependencies** section for the dependencies used by
+each part of the configuration. Package names and installation methods may
+differ between Linux distributions.
 
 ## Possible Future Additions
 
