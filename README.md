@@ -14,7 +14,11 @@ dotfiles/
 ├── README.md
 ├── bash/
 │   ├── .bash_profile
-│   └── .bashrc
+│   ├── .bashrc
+│   └── .config/
+│       └── bash/
+│           └── functions/
+│               └── cppsymbols.sh
 ├── bat/
 │   └── .config/
 │       └── bat/
@@ -39,6 +43,7 @@ For example:
 ```text
 bash/.bash_profile → ~/.bash_profile
 bash/.bashrc       → ~/.bashrc
+bash/.config/bash/functions/cppsymbols.sh → ~/.config/bash/functions/cppsymbols.sh
 git/.gitconfig     → ~/.gitconfig
 ssh/.ssh/config    → ~/.ssh/config
 tmux/.tmux.conf    → ~/.tmux.conf
@@ -321,16 +326,28 @@ remain aligned.
 * Colorized `ls` and `grep` output when GNU `dircolors` is available
 * Programmable command completion when `bash-completion` is installed
 * Compatibility aliases for tools whose command names differ between distributions
-* C/C++ source inspection using Universal Ctags
+* Modular Bash helper functions loaded from `~/.config/bash/functions/`
+* C/C++ source inspection using Universal Ctags and `jq`
 * Support for machine-specific settings through `~/.bashrc.local`
 * Automatic attachment to the most recently active tmux session when logging in through SSH
 
-The Bash configuration provides a `cppsymbols` helper for inspecting C++ source
-files with Universal Ctags. It lists classes and functions using Ctags'
-human-readable cross-reference output without creating a persistent `tags`
-file.
+The Bash package provides a `cppsymbols` helper for quickly inspecting classes
+and functions in C++ source code.
 
-For example:
+The implementation is kept separately from `.bashrc` in:
+
+```text
+~/.config/bash/functions/cppsymbols.sh
+```
+
+and is loaded automatically by `.bashrc` when the file exists.
+
+The helper uses Universal Ctags to parse C++ source code and produce JSON
+records. These records are processed with `jq` to provide deterministic
+sorting and colorized, human-readable terminal output without creating a
+persistent `tags` file.
+
+By default, symbols are sorted alphabetically by name:
 
 ```bash
 cppsymbols file.cpp
@@ -338,9 +355,39 @@ cppsymbols include/foo.hpp src/foo.cpp
 cppsymbols src/
 ```
 
-Directories are searched recursively. This makes the helper useful both for
-examining individual source files and for getting a quick overview of the
-classes and functions in a larger C++ source tree.
+The sort order can also be selected explicitly:
+
+```bash
+cppsymbols --by-name src/
+cppsymbols --by-location src/
+```
+
+`--by-name` sorts by symbol name, followed by file and line number.
+`--by-location` sorts by file name, line number, and symbol name.
+
+Directories are searched recursively.
+
+Two convenience wrappers provide paged output through `less` while preserving
+ANSI colors:
+
+```bash
+cppsyms src/
+cppsymsloc src/
+```
+
+`cppsyms` sorts symbols by name, while `cppsymsloc` sorts them by source
+location.
+
+The helper currently reports C++ classes and functions/methods. All supplied
+files are explicitly interpreted as C++, so the helper is intended for C++
+source files and source trees rather than mixed-language directories.
+
+The helper requires both Universal Ctags and `jq` to be installed and
+available in `PATH`.
+
+Larger shell helpers are kept outside `.bashrc` so that the main interactive
+shell configuration remains easy to read and maintain. Additional substantial
+helpers can be added under `~/.config/bash/functions/` as they become useful.
 
 Machine-specific paths should be placed in `~/.bashrc.local` rather than the
 tracked `.bashrc`. For example, a manually installed Neovim on a Raspberry Pi
@@ -489,24 +536,22 @@ stow --no-folding example
 This repository configures or makes use of the following command-line
 tools:
 
--   Bash --- interactive shell
--   bash-completion --- programmable, command-aware completion for Bash
--   Git --- version control
--   OpenSSH --- SSH client
--   tmux --- terminal multiplexer
--   Vim --- text editor
--   Universal Ctags --- source-code indexing and C/C++ symbol discovery
--   GNU Stow --- dotfile symlink management
--   bat --- syntax-highlighting file viewer
--   Git LFS --- large-file support for Git
--   Screenfetch --- Raspbian ASCII artwork for the login banner
--   figlet --- large machine-name heading in the login banner
--   lolcat --- optional color for the figlet heading
--   curl --- public-IP and weather lookups used by the login banner
--   Raspberry Pi `vcgencmd` --- CPU temperature, clock, and throttling
-    information
-    used by the `cppsymbols` Bash helper
-
+* Bash — interactive shell
+* bash-completion — programmable, command-aware completion for Bash
+* Git — version control
+* OpenSSH — SSH client
+* tmux — terminal multiplexer
+* Vim — text editor
+* Universal Ctags — source-code indexing and C/C++ symbol discovery used by the `cppsymbols` Bash helper
+* jq — JSON processing used to sort and format `cppsymbols` output
+* GNU Stow — dotfile symlink management
+* bat — syntax-highlighting file viewer
+* Git LFS — large-file support for Git
+* Screenfetch — Raspbian ASCII artwork for the login banner
+* figlet — large machine-name heading in the login banner
+* lolcat — optional color for the figlet heading
+* curl — public-IP and weather lookups used by the login banner
+* Raspberry Pi `vcgencmd` — CPU temperature, clock, and throttling information
 
 The repository manages configuration for these tools, but does not
 install them. Package names and installation methods may differ between

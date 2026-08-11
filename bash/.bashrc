@@ -191,46 +191,16 @@ fi
 
 
 # =============================================================================
-# C/C++ source inspection
+# Shell functions
 # =============================================================================
 
-# List classes and functions found in C++ source files using Universal Ctags.
+# Load reusable Bash helper functions kept outside .bashrc.
 #
-# Usage:
-#
-#     cppsymbols file.cpp
-#     cppsymbols include/foo.hpp src/foo.cpp
-#     cppsymbols src/
-#
-# When a directory is supplied, ctags searches it recursively.
-#
-# The output is printed as a human-readable cross-reference rather than
-# creating a persistent `tags` file.
-#
-# This requires Universal Ctags to be installed and available as `ctags`.
-cppsymbols()
-{
-    # Make the failure explicit rather than producing a confusing shell error
-    # if ctags is not installed.
-    if ! command -v ctags >/dev/null 2>&1; then
-        printf 'cppsymbols: ctags is not installed\n' >&2
-        return 127
-    fi
-
-    # At least one file or directory must be supplied.
-    if (( $# == 0 )); then
-        printf 'Usage: cppsymbols <file-or-directory> [...]\n' >&2
-        return 2
-    fi
-
-    ctags \
-        --languages=C++ \
-        --kinds-C++=cf \
-        --output-format=xref \
-        --sort=yes \
-        --recurse=yes \
-        "$@"
-}
+# Larger helpers live in separate files so the main shell configuration remains
+# easy to read and maintain.
+if [[ -f "$HOME/.config/bash/functions/cppsymbols.sh" ]]; then
+    source "$HOME/.config/bash/functions/cppsymbols.sh"
+fi
 
 
 # =============================================================================
