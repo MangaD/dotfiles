@@ -1,4 +1,19 @@
 " =============================================================================
+" Leader key
+" =============================================================================
+
+" Use Space as the leader key for custom mappings.
+"
+" The leader key acts as a prefix for related custom commands. For example:
+"
+"     Space + t + n    Open a new tab page
+"     Space + t + c    Close the current tab page
+"
+" Define this before any mappings that use <Leader>.
+let mapleader = " "
+
+
+" =============================================================================
 " Filetypes and syntax
 " =============================================================================
 
@@ -29,14 +44,73 @@ set showmatch
 " Show the cursor position in the ruler or status area.
 set ruler
 
-" Enable enhanced command-line completion.
+" Enable Vim's enhanced command-line completion menu.
+"
+" This affects completion for commands entered after `:`, such as file names,
+" commands, options, buffers, and other context-dependent values.
+"
+" For example:
+"
+"     :edit src/<Tab>
+"     :colorscheme <Tab>
+"
+" When multiple matches are available, Vim displays them as completion
+" candidates rather than requiring their names to be entered manually.
 set wildmenu
 
-" Complete the longest common match first, then show all available matches.
+" Configure how command-line completion behaves when Tab is pressed.
+"
+" Completion proceeds in two stages:
+"
+"     longest:full
+"         Complete the longest text shared by all matching candidates and
+"         display the available matches.
+"
+"     full
+"         Subsequent Tab presses cycle through the individual matches.
+"
+" For example, if a directory contains:
+"
+"     source.cpp
+"     source.hpp
+"     sounds.cpp
+"
+" entering:
+"
+"     :edit so<Tab>
+"
+" first expands the common portion as far as possible. Further Tab presses can
+" then cycle through the available matching files.
 set wildmode=longest:full,full
 
 " Allow switching away from modified buffers without saving them first.
 set hidden
+
+" Prompt for confirmation when an operation would otherwise fail because of
+" unsaved changes.
+"
+" For example, when attempting to quit a modified buffer, Vim can present a
+" choice to save or discard the changes instead of simply reporting an error.
+set confirm
+
+" Automatically detect when a file has been modified outside Vim.
+"
+" When Vim determines that an unmodified buffer's file has changed on disk, it
+" reloads the file rather than continuing to display stale contents.
+"
+" Vim performs these checks at certain safe points, such as when returning to
+" the editor after executing an external command.
+set autoread
+
+" Make Backspace behave naturally throughout Insert mode.
+"
+"     indent    Allow Backspace over automatic indentation.
+"     eol       Allow Backspace to join the current line with the previous one.
+"     start     Allow Backspace past the position where Insert mode started.
+"
+" Modern Vim installations commonly behave this way already, but setting it
+" explicitly makes the intended behavior portable and predictable.
+set backspace=indent,eol,start
 
 " Enable mouse support in all modes.
 set mouse=a
@@ -46,9 +120,155 @@ set mouse=a
 set clipboard=unnamedplus
 
 
+" -----------------------------------------------------------------------------
+" OSC 52 clipboard
+" -----------------------------------------------------------------------------
+
+" Copy text to the local terminal clipboard.
+"
+" When Vim is running inside tmux, let tmux handle the clipboard transfer using
+" its OSC 52 support.
+"
+" Outside tmux, emit OSC 52 directly to the controlling terminal.
+"
+" This requires:
+"
+"   - Universal `base64` support for direct OSC 52 mode.
+"   - tmux with clipboard support when running inside tmux.
+"   - A terminal emulator that allows OSC 52 clipboard writes.
+function! s:OSC52Copy(text)
+    " -------------------------------------------------------------------------
+    " tmux
+    " -------------------------------------------------------------------------
+
+    " When running inside tmux, load the selected text into a tmux buffer and
+    " ask tmux to copy that buffer to the external terminal clipboard.
+    "
+    " The `-w` option tells tmux to also send the buffer through its clipboard
+    " mechanism.
+    if exists('$TMUX') && !empty($TMUX)
+        call system('tmux load-buffer -w -', a:text)
+
+        if v:shell_error
+            echohl ErrorMsg
+            echomsg 'OSC 52: tmux clipboard copy failed'
+            echohl None
+        endif
+
+        return
+    endif
+
+
+    " -------------------------------------------------------------------------
+    " Direct terminal OSC 52
+    " -------------------------------------------------------------------------
+
+    " Encode the copied text as Base64 without line wrapping.
+    let l:encoded = system('base64 | tr -d "\n"', a:text)
+
+    if v:shell_error
+        echohl ErrorMsg
+        echomsg 'OSC 52: failed to encode clipboard contents'
+        echohl None
+        return
+    endif
+
+    " Construct the OSC 52 clipboard escape sequence:
+    "
+    "     ESC ] 52 ; c ; DATA BEL
+    let l:sequence = "\e]52;c;" . l:encoded . "\a"
+
+    " Send the sequence directly to the controlling terminal.
+    call writefile([l:sequence], '/dev/tty', 'b')
+endfunction
+
+
+" Copy the current visual selection to the local clipboard using OSC 52.
+"
+"     Space + y
+"
+" The text remains selected afterwards.
+vnoremap <Leader>y y:call <SID>OSC52Copy(@")<CR>gv
+
+
+" =============================================================================
+" Tab pages
+" =============================================================================
+
+" Always show Vim's tab line at the top of the editor.
+"
+" Values:
+"
+"     0    Never show the tab line
+"     1    Show it only when more than one tab page exists
+"     2    Always show it
+"
+" Tab pages are technically containers for one or more Vim windows rather than
+" individual buffers. In this configuration they can also be used as a simple,
+" visible way to keep several files available across the top of the editor.
+set showtabline=2
+
+
+" -----------------------------------------------------------------------------
+" Command-line files
+" -----------------------------------------------------------------------------
+
+" When Vim starts with multiple file arguments, display each file in its own
+" tab page.
+"
+" This makes:
+"
+"     vim file1.cpp file2.cpp file3.hpp
+"
+" behave like:
+"
+"     vim -p file1.cpp file2.cpp file3.hpp
+"
+" With zero or one file argument, Vim's normal startup behavior is unchanged.
+"
+" Note that this applies to every argument in the argument list. For example,
+" `vim *.cpp` will create one tab page for every matching C++ file.
+autocmd VimEnter * if argc() > 1 | tab all | endif
+
+
 " =============================================================================
 " Mappings
 " =============================================================================
+
+" -----------------------------------------------------------------------------
+" Saving
+" -----------------------------------------------------------------------------
+
+" Save the current buffer with Ctrl+s.
+"
+" The mapping works in Normal, Insert, and Visual modes:
+"
+"     Ctrl+s    Write the current buffer
+"
+" In Insert mode, the buffer is written without permanently leaving Insert mode.
+" In Visual mode, the current selection remains active after saving.
+"
+" Note:
+" Some terminals use Ctrl+s for XON/XOFF software flow control. If Ctrl+s
+" freezes terminal output instead of reaching Vim, check:
+"
+"     stty -a
+"
+" If `ixon` is enabled, it can be disabled for the current terminal with:
+"
+"     stty -ixon
+"
+" Ctrl+q traditionally resumes output when XON/XOFF flow control is enabled.
+
+" Normal mode: write the current buffer.
+nnoremap <C-s> :write<CR>
+
+" Insert mode: write without permanently leaving Insert mode.
+inoremap <C-s> <C-o>:write<CR>
+
+" Visual mode: write and restore the current selection.
+vnoremap <C-s> :write<CR>gv
+
 
 " -----------------------------------------------------------------------------
 " Move lines
@@ -106,6 +326,58 @@ vnoremap <A-j>    :move '>+1<CR>gv=gv
 vnoremap <A-k>    :move '<-2<CR>gv=gv
 vnoremap <A-Down> :move '>+1<CR>gv=gv
 vnoremap <A-Up>   :move '<-2<CR>gv=gv
+
+
+" -----------------------------------------------------------------------------
+" Tab navigation
+" -----------------------------------------------------------------------------
+
+" Vim already provides the following native tab-page mappings:
+"
+"     gt    Move to the next tab page
+"     gT    Move to the previous tab page
+"
+" Keep those native mappings and also provide familiar arrow-key alternatives:
+"
+"     Alt+Left     Previous tab page
+"     Alt+Right    Next tab page
+"
+" Some terminal emulators may intercept Alt+Left or Alt+Right before they reach
+" Vim. The native gt and gT mappings remain available in that case.
+nnoremap <A-Left>  :tabprevious<CR>
+nnoremap <A-Right> :tabnext<CR>
+
+
+" -----------------------------------------------------------------------------
+" Creating and closing tabs
+" -----------------------------------------------------------------------------
+
+" Open a new empty tab page.
+"
+"     Space + t + n
+nnoremap <Leader>tn :tabnew<CR>
+
+" Close the current tab page.
+"
+"     Space + t + c
+"
+" Vim will refuse to discard unsaved changes unless explicitly forced.
+nnoremap <Leader>tc :tabclose<CR>
+
+
+" -----------------------------------------------------------------------------
+" Moving tabs
+" -----------------------------------------------------------------------------
+
+" Move the current tab page one position to the left.
+"
+"     Space + t + h
+nnoremap <Leader>th :-tabmove<CR>
+
+" Move the current tab page one position to the right.
+"
+"     Space + t + l
+nnoremap <Leader>tl :+tabmove<CR>
 
 
 " =============================================================================
@@ -191,6 +463,127 @@ endif
 
 
 " =============================================================================
+" Colorscheme
+" =============================================================================
+
+" Use a dark background.
+"
+" Colorschemes can use this setting to select colors intended for dark
+" terminals.
+set background=dark
+
+" Use Vim's built-in Koehler colorscheme when available.
+"
+" Koehler provides a modern dark appearance without requiring an external
+" plugin, keeping this configuration portable between machines.
+"
+" `silent!` prevents Vim from failing during startup on installations that do
+" not provide the colorscheme.
+silent! colorscheme koehler
+
+
+" -----------------------------------------------------------------------------
+" Colorscheme notification
+" -----------------------------------------------------------------------------
+
+" Display the currently selected colorscheme after Vim has completed any
+" redraws caused by applying it.
+"
+" `echomsg` also stores the message in :messages, so the selected theme can
+" still be checked later even if another message eventually replaces it.
+function! s:ShowColorscheme(scheme, timer)
+    redraw
+
+    echohl ModeMsg
+    echomsg 'Colorscheme: ' . a:scheme
+    echohl None
+endfunction
+
+
+" -----------------------------------------------------------------------------
+" Colorscheme selector
+" -----------------------------------------------------------------------------
+
+" Return a sorted list of all colorschemes available in Vim's runtime path.
+"
+" `globpath()` searches every colors/ directory in 'runtimepath'.
+" The resulting file paths are reduced to their filename without the .vim
+" extension and duplicates are removed.
+function! s:GetColorschemes()
+    let l:files = globpath(&runtimepath, 'colors/*.vim', 0, 1)
+    let l:schemes = map(l:files, 'fnamemodify(v:val, ":t:r")')
+
+    return uniq(sort(l:schemes))
+endfunction
+
+
+" Switch to the next or previous available colorscheme.
+"
+" Direction:
+"
+"      1    Next colorscheme
+"     -1    Previous colorscheme
+"
+" The list wraps around in both directions.
+function! s:CycleColorscheme(direction)
+    let l:schemes = s:GetColorschemes()
+
+    if empty(l:schemes)
+        echohl WarningMsg
+        echom 'No colorschemes found'
+        echohl None
+        return
+    endif
+
+    " Determine the currently active colorscheme.
+    let l:current = get(g:, 'colors_name', '')
+
+    " Find it in the available colorscheme list.
+    let l:index = index(l:schemes, l:current)
+
+    " If the current colorscheme is unknown, start at the beginning.
+    if l:index == -1
+        let l:index = 0
+    else
+        " Move forwards or backwards and wrap around the list.
+        let l:index = (l:index + a:direction + len(l:schemes))
+                    \ % len(l:schemes)
+    endif
+
+    let l:scheme = l:schemes[l:index]
+
+    " Apply the selected colorscheme.
+    execute 'colorscheme ' . fnameescape(l:scheme)
+
+    " Applying a colorscheme can trigger redraws or messages that immediately
+    " overwrite normal `echo` output.
+    "
+    " Schedule our notification after the colorscheme command and the key
+    " mapping have finished processing.
+    if has('timers')
+        call timer_start(
+                    \ 50,
+                    \ function('<SID>ShowColorscheme', [l:scheme])
+                    \ )
+    else
+        " Fall back to an immediate message on Vim builds without timer support.
+        redraw
+        echohl ModeMsg
+        echomsg 'Colorscheme: ' . l:scheme
+        echohl None
+    endif
+endfunction
+
+
+" Cycle through the available colorschemes.
+"
+"     F7    Previous colorscheme
+"     F8    Next colorscheme
+nnoremap <F7> :call <SID>CycleColorscheme(-1)<CR>
+nnoremap <F8> :call <SID>CycleColorscheme(1)<CR>
+
+
+" =============================================================================
 " Highlighting
 " =============================================================================
 
@@ -240,3 +633,21 @@ set completeopt=menuone,noinsert,noselect
 
 " Use Vim's built-in C indentation rules for C and C++ files.
 autocmd FileType c,cpp setlocal cindent
+
+
+" =============================================================================
+" Machine-specific configuration
+" =============================================================================
+
+" Load optional Vim settings that should not be stored in the shared dotfiles
+" repository.
+"
+" ~/.vimrc.local can contain machine-specific paths, terminal-specific
+" behavior, private settings, experimental mappings, or other configuration
+" that should apply only to the current machine.
+"
+" Settings in this file are loaded last, so they can intentionally override
+" values defined earlier in the main .vimrc.
+if filereadable(expand('~/.vimrc.local'))
+    source ~/.vimrc.local
+endif

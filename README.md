@@ -145,10 +145,13 @@ After installing Git LFS for the first time, initialize it with:
 git lfs install
 ```
 
-#### tmux plugins
+#### Installing tmux plugins
 
-The tmux configuration uses TPM (Tmux Plugin Manager) to manage its plugins.
-TPM is installed separately rather than through GNU Stow.
+The tmux configuration uses TPM (Tmux Plugin Manager) to install and manage
+its plugins.
+
+TPM is installed separately from the dotfiles repository and should not be
+committed to it.
 
 Install TPM with:
 
@@ -176,6 +179,9 @@ TPM will install the plugins declared by the configuration:
 
 The plugin directories under `~/.tmux/plugins/` are installed and managed by
 TPM and should not be committed to this dotfiles repository.
+
+tmux's clipboard integration is also used by the Vim configuration when
+copying remote selections to the local terminal clipboard through OSC 52.
 
 #### Neovim and Tree-sitter
 
@@ -375,6 +381,32 @@ may be placed in the tracked configuration when appropriate.
 `config.local` is useful when those details are private or specific to
 one machine.
 
+### Vim
+
+The tracked `.vimrc` optionally loads:
+
+```text
+~/.vimrc.local
+````
+
+when the file exists.
+
+This file can contain machine-specific or private Vim settings that should not
+be stored in the shared dotfiles repository.
+
+Because `.vimrc.local` is loaded after the main configuration, settings in it
+can intentionally override values from the tracked `.vimrc`.
+
+For example:
+
+```vim
+set colorcolumn=100
+colorscheme desert
+```
+
+`~/.vimrc.local` is not managed by GNU Stow and should remain outside the
+repository.
+
 ## Sensitive Information
 
 Credentials and secrets must never be committed to this repository.
@@ -401,6 +433,7 @@ Public SSH keys are not secret, but they are also not managed by this
 repository.
 
 The repository is intended to manage **configuration**, not credentials.
+
 
 ## Configuration Overview
 
@@ -674,22 +707,24 @@ Automatic periodic saving and startup restoration are handled by
 
 ### Vim
 
-`vim/.vimrc` contains editor configuration, including:
+`vim/.vimrc` provides a lightweight terminal-oriented Vim configuration for
+general editing, including use over SSH and inside tmux.
 
--   Filetype detection and indentation
--   Syntax highlighting
--   Search behavior
--   Tab and indentation settings
--   Visible whitespace
--   Persistent undo
--   Completion behavior
--   Scrolling behavior
--   C/C++ indentation
--   Terminal color support
--   Line-number and whitespace highlighting
+The configuration includes:
 
-Historical settings that are currently disabled are kept commented out
-for reference.
+- Filetype detection, syntax highlighting, and indentation
+- Search, completion, whitespace, and scrolling behavior
+- Tab-page management and navigation
+- Custom editing and save mappings
+- System clipboard and OSC 52 remote clipboard support
+- Interactive colorscheme selection
+- Persistent undo
+- C/C++-specific indentation
+- Support for machine-specific settings through `~/.vimrc.local`
+
+For installation requirements, configuration details, mappings, clipboard
+behavior, colorscheme selection, and usage, see
+[`vim/README.md`](vim/README.md).
 
 ## Adding New Configuration
 
@@ -754,7 +789,8 @@ tools:
 * tmux-sensible — sensible baseline defaults for tmux
 * tmux-resurrect — tmux session persistence and restoration
 * tmux-continuum — automatic periodic saving and restoration of tmux sessions
-* Vim — text editor
+* Vim — terminal text editor with tab-page, clipboard, OSC 52, colorscheme,
+  persistent-undo, and C/C++ editing configuration
 * Universal Ctags — source-code indexing and C/C++ symbol discovery used by the `cppsymbols` Bash helper
 * jq — JSON processing used to sort and format `cppsymbols` output
 * GNU Stow — dotfile symlink management
