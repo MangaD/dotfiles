@@ -176,10 +176,16 @@ function! s:OSC52Copy(text)
     " Construct the OSC 52 clipboard escape sequence:
     "
     "     ESC ] 52 ; c ; DATA BEL
-    let l:sequence = "\e]52;c;" . l:encoded . "\a"
 
-    " Send the sequence directly to the controlling terminal.
-    call writefile([l:sequence], '/dev/tty', 'b')
+    " Let printf create ESC (033) and BEL (a).
+    let l:cmd = "printf '\\033]52;c;" . l:encoded . "\\a' > /dev/tty"
+    call system(l:cmd)
+
+    if v:shell_error
+        echohl ErrorMsg
+        echomsg 'OSC 52: failed to write to terminal'
+        echohl None
+    endif
 endfunction
 
 
