@@ -23,6 +23,8 @@ dotfiles/
 │   └── .config/
 │       └── bat/
 │           └── config
+├── gdb/
+│   └── .gdbinit
 ├── git/
 |   ├── .gitattributes
 │   └── .gitconfig
@@ -32,7 +34,9 @@ dotfiles/
 ├── tmux/
 │   └── .tmux.conf
 └── vim/
-    └── .vimrc
+    ├── .stow-local-ignore
+    ├── .vimrc
+    └── README.md
 ```
 
 Each directory is a GNU Stow package whose contents mirror their
@@ -44,6 +48,7 @@ For example:
 bash/.bash_profile → ~/.bash_profile
 bash/.bashrc       → ~/.bashrc
 bash/.config/bash/functions/cppsymbols.sh → ~/.config/bash/functions/cppsymbols.sh
+gdb/.gdbinit       → ~/.gdbinit
 git/.gitconfig     → ~/.gitconfig
 ssh/.ssh/config    → ~/.ssh/config
 tmux/.tmux.conf    → ~/.tmux.conf
@@ -90,9 +95,11 @@ sudo apt install \
     bat \
     curl \
     figlet \
+    gdb \
     git \
     git-lfs \
     jq \
+    less \
     lolcat \
     screenfetch \
     tmux \
@@ -145,43 +152,12 @@ After installing Git LFS for the first time, initialize it with:
 git lfs install
 ```
 
-#### Installing tmux plugins
+#### tmux
 
-The tmux configuration uses TPM (Tmux Plugin Manager) to install and manage
-its plugins.
+tmux is required for the managed terminal multiplexer configuration.
 
-TPM is installed separately from the dotfiles repository and should not be
-committed to it.
-
-Install TPM with:
-
-```bash
-git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-```
-
-After tmux has been started with the managed `.tmux.conf`, press:
-
-```text
-Prefix + I
-```
-
-With the default prefix:
-
-```text
-Ctrl-b, then Shift-i
-```
-
-TPM will install the plugins declared by the configuration:
-
-* `tmux-plugins/tmux-sensible`
-* `tmux-plugins/tmux-resurrect`
-* `tmux-plugins/tmux-continuum`
-
-The plugin directories under `~/.tmux/plugins/` are installed and managed by
-TPM and should not be committed to this dotfiles repository.
-
-tmux's clipboard integration is also used by the Vim configuration when
-copying remote selections to the local terminal clipboard through OSC 52.
+The configuration also uses TPM and several tmux plugins. See the
+[tmux configuration](#tmux-plugins) section for plugin installation and usage.
 
 #### Neovim and Tree-sitter
 
@@ -245,14 +221,19 @@ in this repository. Private keys and other SSH files should remain in
 Install all packages:
 
 ```bash
-stow --no-folding bash bat git ssh tmux vim
+stow --no-folding bash bat gdb git ssh tmux vim
 ```
 
 Or install packages individually:
 
 ```bash
 stow --no-folding bash
+stow --no-folding bat
+stow --no-folding gdb
 stow --no-folding git
+stow --no-folding ssh
+stow --no-folding tmux
+stow --no-folding vim
 ```
 
 `--no-folding` makes Stow create links for the individual managed files
@@ -268,11 +249,48 @@ point to the files in this repository:
 ```text
 ~/.bash_profile → ~/dotfiles/bash/.bash_profile
 ~/.bashrc       → ~/dotfiles/bash/.bashrc
+~/.gdbinit      → ~/dotfiles/gdb/.gdbinit
 ~/.gitconfig    → ~/dotfiles/git/.gitconfig
 ~/.ssh/config   → ~/dotfiles/ssh/.ssh/config
 ~/.tmux.conf    → ~/dotfiles/tmux/.tmux.conf
 ~/.vimrc        → ~/dotfiles/vim/.vimrc
 ```
+
+#### Package documentation
+
+Individual Stow packages may contain their own `README.md` when the
+configuration is substantial enough to benefit from dedicated documentation.
+
+Package-level documentation belongs to the repository but should not be
+symlinked into the home directory. Packages containing such files therefore
+use `.stow-local-ignore` to exclude them from Stow.
+
+For example:
+
+```text
+vim/
+├── .stow-local-ignore
+├── .vimrc
+└── README.md
+````
+
+with:
+
+```text
+README\.md
+```
+
+When:
+
+```bash
+stow --no-folding vim
+```
+
+is run, `.vimrc` is managed normally while `README.md` remains only in the
+repository.
+
+`.stow-local-ignore` controls which files GNU Stow ignores; it is unrelated to
+`.gitignore`, which controls which files Git tracks.
 
 ## Updating
 
@@ -387,7 +405,7 @@ The tracked `.vimrc` optionally loads:
 
 ```text
 ~/.vimrc.local
-````
+```
 
 when the file exists.
 
@@ -404,8 +422,9 @@ set colorcolumn=100
 colorscheme desert
 ```
 
-`~/.vimrc.local` is not managed by GNU Stow and should remain outside the
-repository.
+`~/.vimrc.local` is not part of the `vim` Stow package and should remain
+outside the repository. The repository's `*.local` Git ignore rule prevents
+machine-specific `.local` files from being committed accidentally.
 
 ## Sensitive Information
 
@@ -650,6 +669,7 @@ reattaches to an existing tmux session when possible, while tmux-resurrect and
 tmux-continuum can reconstruct saved sessions after the tmux server or machine
 has been restarted.
 
+<a name="tmux-plugins"></a>
 #### Installing tmux plugins
 
 The tmux configuration uses TPM (Tmux Plugin Manager) to install and manage
@@ -673,7 +693,14 @@ With tmux's default prefix, this means pressing:
 Ctrl-b, then Shift-i
 ```
 
-TPM will install the plugins declared in `.tmux.conf`.
+TPM will install the plugins declared in `.tmux.conf`:
+
+* `tmux-plugins/tmux-sensible`
+* `tmux-plugins/tmux-resurrect`
+* `tmux-plugins/tmux-continuum`
+
+The plugin directories under `~/.tmux/plugins/` are installed and managed by
+TPM and should not be committed to this dotfiles repository.
 
 Useful TPM shortcuts include:
 
@@ -704,6 +731,45 @@ Prefix + Ctrl-r     Restore the most recently saved environment
 
 Automatic periodic saving and startup restoration are handled by
 `tmux-continuum`.
+
+tmux's clipboard integration is also used by the Vim configuration when
+copying remote selections to the local terminal clipboard through OSC 52.
+
+### GDB
+
+`gdb/.gdbinit` provides a small set of defaults for debugging C and C++
+programs with GDB.
+
+The configuration includes:
+
+- Disabled output pagination for easier terminal and tmux scrollback
+- Pretty-printing of structures, classes, arrays, and other compound values
+- Array indexes when displaying array elements
+- Dynamic C++ object type display when available
+- Demangling of C++ names in normal and assembly output
+- Persistent command history across GDB sessions
+- A command history limit of 10,000 entries
+- Ten-line source listings
+- Confirmation prompts for potentially destructive operations
+
+GDB command history is stored in:
+
+```text
+~/.gdb_history
+```
+
+Intel assembly syntax is documented in `.gdbinit` but remains disabled by
+default:
+
+```gdb
+#set disassembly-flavor intel
+```
+
+Uncomment it if Intel syntax is preferred over GDB's default AT&T syntax.
+
+The configuration deliberately remains small and relies on GDB's standard
+functionality rather than introducing debugger frameworks or machine-specific
+Python configuration.
 
 ### Vim
 
@@ -775,6 +841,14 @@ and could then be installed with:
 stow --no-folding example
 ```
 
+If a package requires substantial package-specific documentation, add a
+`README.md` inside the package and add it to that package's
+`.stow-local-ignore` so that Stow does not create a corresponding symlink in
+the home directory.
+
+Small configurations should remain documented in the main repository README
+rather than receiving a separate package README.
+
 ## Tools
 
 This repository configures or makes use of the following command-line
@@ -782,6 +856,7 @@ tools:
 
 * Bash — interactive shell
 * bash-completion — programmable, command-aware completion for Bash
+* GDB — debugger for C and C++ programs
 * Git — version control
 * OpenSSH — SSH client
 * tmux — terminal multiplexer
