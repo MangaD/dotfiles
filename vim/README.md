@@ -8,15 +8,23 @@ The configuration is intentionally lightweight and terminal-oriented. It is desi
 
 ```text
 vim/
-├── README.md
-└── .vimrc
+├── .stow-local-ignore
+├── .vimrc
+├── .vim/
+│   └── autoload/
+│       └── osc52.vim
+└── README.md
 ```
 
-When installed with GNU Stow, `.vimrc` is linked to:
+When installed with GNU Stow, the managed files are linked to:
 
 ```text
-~/.vimrc
+vim/.vimrc                    → ~/.vimrc
+vim/.vim/autoload/osc52.vim → ~/.vim/autoload/osc52.vim
 ```
+
+`README.md` is repository documentation and is excluded from Stow by
+`.stow-local-ignore`.
 
 ## Overview
 
@@ -205,41 +213,64 @@ Moved lines are reindented according to the indentation rules for the current fi
 
 ## Clipboard
 
-### System Clipboard
+The configuration supports two clipboard mechanisms.
 
-The configuration uses:
+### Native Vim clipboard
+
+Vim uses the `+` register as its default register when clipboard support is
+available:
 
 ```vim
 set clipboard=unnamedplus
-```
+````
 
-when Vim has access to the system clipboard. Normal yank, delete, change, and paste operations therefore use the `+` clipboard according to Vim's clipboard behavior.
+This integrates normal yank, delete, change, and paste operations with the
+system clipboard on builds of Vim that provide clipboard support.
 
-This requires a Vim build with clipboard support and an environment in which Vim can access that clipboard.
+### OSC 52 clipboard
 
-### OSC 52
-
-OSC 52 support is provided for remote terminal editing, where the Vim process may not have direct access to the clipboard of the local computer.
-
-Select text in Visual mode and press:
+Visual selections can also be copied explicitly to the local terminal
+clipboard with:
 
 ```text
-Space y             Copy selection to the local terminal clipboard
+Space + y
 ```
 
-When Vim is running inside tmux, the configuration passes the selected text to tmux using:
+The mapping calls `osc52#copy()`, implemented in:
 
 ```text
-tmux load-buffer -w -
+~/.vim/autoload/osc52.vim
 ```
 
-tmux can then forward the clipboard contents through its configured terminal clipboard support.
+The implementation chooses between two methods:
 
-Outside tmux, Vim Base64-encodes the selected text, constructs an OSC 52 clipboard escape sequence, and writes it to the controlling terminal.
+1. If Vim can communicate with the current tmux server, it uses
+   `tmux load-buffer -w -` and lets tmux forward the text to the terminal
+   clipboard.
 
-The direct OSC 52 path requires the `base64` command. The complete clipboard path also depends on the terminal emulator permitting OSC 52 clipboard writes. When running inside tmux, tmux must likewise be configured for terminal clipboard integration.
+2. Otherwise, it emits an OSC 52 escape sequence directly to `/dev/tty`.
 
-This allows text copied in Vim on a remote machine over SSH to reach the clipboard of the local terminal without requiring the remote machine to access the local graphical clipboard directly.
+The fallback allows clipboard copying to work in environments such as:
+
+```text
+terminal
+  -> tmux
+    -> Docker
+      -> Vim
+```
+
+where the container may inherit `$TMUX` but cannot access the tmux server
+socket.
+
+Direct OSC 52 mode requires:
+
+* `base64`
+* `tr`
+* a controlling terminal (`/dev/tty`)
+* a terminal emulator that permits OSC 52 clipboard writes
+
+When the sequence passes through tmux, tmux must also allow clipboard
+forwarding.
 
 ## Searching
 
@@ -278,7 +309,7 @@ A vertical guide is displayed at column 85.
 
 ## Colorschemes
 
-The configuration uses a dark background and `koheler` as its default colorscheme.
+The configuration uses a dark background and `koehler` as its default colorscheme.
 
 Available colorschemes can be browsed interactively:
 

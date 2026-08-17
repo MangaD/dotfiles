@@ -36,6 +36,9 @@ dotfiles/
 └── vim/
     ├── .stow-local-ignore
     ├── .vimrc
+    ├── .vim/
+    │   └── autoload/
+    │       └── osc52.vim
     └── README.md
 ```
 
@@ -53,6 +56,7 @@ git/.gitconfig     → ~/.gitconfig
 ssh/.ssh/config    → ~/.ssh/config
 tmux/.tmux.conf    → ~/.tmux.conf
 vim/.vimrc         → ~/.vimrc
+vim/.vim/autoload/osc52.vim → ~/.vim/autoload/osc52.vim
 ```
 
 ## Installation
@@ -271,6 +275,9 @@ For example:
 vim/
 ├── .stow-local-ignore
 ├── .vimrc
+├── .vim/
+│   └── autoload/
+│       └── osc52.vim
 └── README.md
 ````
 

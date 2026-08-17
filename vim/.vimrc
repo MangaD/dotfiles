@@ -115,86 +115,39 @@ set backspace=indent,eol,start
 " Enable mouse support in all modes.
 set mouse=a
 
-" Use the system clipboard for normal yank, delete, change, and paste commands.
-" This requires Vim to have clipboard support.
+" Use the `+` register as Vim's default register for yank, delete, change, and
+" paste operations, integrating them with the system clipboard when Vim has
+" clipboard support.
+"
+" This is separate from the OSC 52 mapping below. Native clipboard integration
+" is used when available, while <Leader>y provides an explicit OSC 52 path for
+" environments such as remote sessions, tmux, and containers.
 set clipboard=unnamedplus
 
 
 " -----------------------------------------------------------------------------
 " OSC 52 clipboard
 " -----------------------------------------------------------------------------
-
-" Copy text to the local terminal clipboard.
 "
-" When Vim is running inside tmux, let tmux handle the clipboard transfer using
-" its OSC 52 support.
+" Copy the current visual selection to the local terminal clipboard:
 "
-" Outside tmux, emit OSC 52 directly to the controlling terminal.
+"     <Leader>y
 "
-" This requires:
+" The implementation lives in:
 "
-"   - Universal `base64` support for direct OSC 52 mode.
-"   - tmux with clipboard support when running inside tmux.
-"   - A terminal emulator that allows OSC 52 clipboard writes.
-function! s:OSC52Copy(text)
-    " -------------------------------------------------------------------------
-    " tmux
-    " -------------------------------------------------------------------------
-
-    " When running inside tmux, load the selected text into a tmux buffer and
-    " ask tmux to copy that buffer to the external terminal clipboard.
-    "
-    " The `-w` option tells tmux to also send the buffer through its clipboard
-    " mechanism.
-    if exists('$TMUX') && !empty($TMUX)
-        call system('tmux load-buffer -w -', a:text)
-
-        if v:shell_error
-            echohl ErrorMsg
-            echomsg 'OSC 52: tmux clipboard copy failed'
-            echohl None
-        endif
-
-        return
-    endif
-
-
-    " -------------------------------------------------------------------------
-    " Direct terminal OSC 52
-    " -------------------------------------------------------------------------
-
-    " Encode the copied text as Base64 without line wrapping.
-    let l:encoded = system('base64 | tr -d "\n"', a:text)
-
-    if v:shell_error
-        echohl ErrorMsg
-        echomsg 'OSC 52: failed to encode clipboard contents'
-        echohl None
-        return
-    endif
-
-    " Construct the OSC 52 clipboard escape sequence:
-    "
-    "     ESC ] 52 ; c ; DATA BEL
-
-    " Let printf create ESC (033) and BEL (a).
-    let l:cmd = "printf '\\033]52;c;" . l:encoded . "\\a' > /dev/tty"
-    call system(l:cmd)
-
-    if v:shell_error
-        echohl ErrorMsg
-        echomsg 'OSC 52: failed to write to terminal'
-        echohl None
-    endif
-endfunction
-
-
-" Copy the current visual selection to the local clipboard using OSC 52.
+"     ~/.vim/autoload/osc52.vim
 "
-"     Space + y
+" Calling osc52#copy() causes Vim to load that autoload file automatically the
+" first time the function is used.
 "
-" The text remains selected afterwards.
-vnoremap <Leader>y y:call <SID>OSC52Copy(@")<CR>gv
+" Steps:
+"
+"   1. `y` yanks the visual selection into Vim's unnamed register (`"`).
+"   2. osc52#copy() sends the contents of that register to the local clipboard.
+"   3. `gv` restores the previous visual selection.
+"
+" The selection therefore remains highlighted after the copy operation.
+vnoremap <Leader>y y:call osc52#copy(@")<CR>gv
 
 
 " =============================================================================
