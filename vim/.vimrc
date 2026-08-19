@@ -7,6 +7,7 @@
 " The leader key acts as a prefix for related custom commands. For example:
 "
 "     Space + e        Toggle file explorer
+"     Space + t + t    Toggle terminal
 "     Space + t + n    Open a new tab page
 "     Space + t + c    Close the current tab page
 "
@@ -188,6 +189,23 @@ set showtabline=2
 " Calling explorer#toggle() causes Vim to load that autoload file automatically
 " the first time the function is used.
 nnoremap <Leader>e :call explorer#toggle()<CR>
+
+
+" -----------------------------------------------------------------------------
+" Terminal
+" -----------------------------------------------------------------------------
+
+" Toggle a terminal window at the bottom of the current tab page.
+"
+"     Space + t + t    Toggle terminal
+"
+" The implementation lives in:
+"
+"     ~/.vim/autoload/terminal.vim
+"
+" Calling terminal#toggle() causes Vim to load that autoload file automatically
+" the first time the function is used.
+nnoremap <Leader>tt :call terminal#toggle()<CR>
 
 
 " -----------------------------------------------------------------------------
@@ -421,6 +439,31 @@ endif
 " Status line
 " =============================================================================
 
+" Return a readable name for Vim's current editing mode.
+function! ModeName()
+    let l:mode = mode()
+
+    if l:mode ==# 'n'
+        return 'NORMAL'
+    elseif l:mode ==# 'i'
+        return 'INSERT'
+    elseif l:mode ==# 'v'
+        return 'VISUAL'
+    elseif l:mode ==# 'V'
+        return 'V-LINE'
+    elseif l:mode ==# "\<C-v>"
+        return 'V-BLOCK'
+    elseif l:mode ==# 'R'
+        return 'REPLACE'
+    elseif l:mode ==# 'c'
+        return 'COMMAND'
+    elseif l:mode ==# 't'
+        return 'TERMINAL'
+    endif
+
+    return toupper(l:mode)
+endfunction
+
 " Always display a status line for the current window.
 "
 " Values:
@@ -429,6 +472,13 @@ endif
 "     1    Only when more than one window is open
 "     2    Always
 set laststatus=2
+
+" Do not display Vim's traditional mode indicator in the command-line area.
+"
+" The current mode is displayed explicitly in the status line below, so
+" showing messages such as -- INSERT -- and -- VISUAL -- would duplicate the
+" same information.
+set noshowmode
 
 " Configure the information displayed in the status line.
 "
@@ -452,15 +502,25 @@ set laststatus=2
 "           File format (unix, dos, or mac)
 "     %l    Current line number
 "     %c    Current column number
-"     %p%%  Position through the file as a percentage
 "     %P    Vim-style position: Top, Bot, All, or 63%
-set statusline=\ %f\ %m%r%h
+set statusline=\ %#StatusLineMode#%{ModeName()}%*\ \|\ %f\ %m%r%h
 set statusline+=%=
 set statusline+=\ %y
 set statusline+=\ \|\ %{&fileencoding!=''?&fileencoding:&encoding}
 set statusline+=\ \|\ %{&fileformat}
 set statusline+=\ \|\ %l,%c
 set statusline+=\ \|\ %P\ 
+
+" Redraw the status line immediately when Vim changes editing modes.
+"
+" ModeChanged is available only in newer Vim versions, so guard the autocmd to
+" keep the configuration compatible with older builds.
+if exists('##ModeChanged')
+    augroup statusline_mode
+        autocmd!
+        autocmd ModeChanged * redrawstatus
+    augroup END
+endif
 
 
 " =============================================================================
@@ -506,9 +566,17 @@ highlight LineNr       ctermbg=NONE guibg=NONE
 highlight CursorLineNr ctermbg=NONE guibg=NONE
 highlight CursorLine   ctermbg=NONE guibg=NONE
 
-" Keep status lines transparent while using white text for good contrast.
-highlight StatusLine   ctermfg=White ctermbg=NONE guifg=#ffffff guibg=NONE
-highlight StatusLineNC ctermfg=White ctermbg=NONE guifg=#ffffff guibg=NONE
+" Keep status lines transparent.
+"
+" Use bright text for the focused window and subdued text for non-focused
+" windows. Clear reverse-video attributes inherited from the colorscheme so
+" the transparent background remains effective.
+highlight StatusLine   ctermfg=White ctermbg=NONE cterm=NONE guifg=#ffffff guibg=NONE gui=NONE
+highlight StatusLineNC ctermfg=Gray  ctermbg=NONE cterm=NONE guifg=#808080 guibg=NONE gui=NONE
+
+" Highlight the mode name in the status line using the same foreground and
+" transparent background as the active status line, with bold emphasis.
+highlight StatusLineMode ctermfg=White ctermbg=NONE cterm=bold guifg=#ffffff guibg=NONE gui=bold
 
 " Tab line. Keep it transparent.
 "

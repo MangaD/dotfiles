@@ -13,7 +13,8 @@ vim/
 ├── .vim/
 │   └── autoload/
 │       ├── explorer.vim
-│       └── osc52.vim
+│       ├── osc52.vim
+│       └── terminal.vim
 └── README.md
 ```
 
@@ -23,6 +24,7 @@ When installed with GNU Stow, the managed files are linked to:
 vim/.vimrc                       → ~/.vimrc
 vim/.vim/autoload/explorer.vim   → ~/.vim/autoload/explorer.vim
 vim/.vim/autoload/osc52.vim      → ~/.vim/autoload/osc52.vim
+vim/.vim/autoload/terminal.vim   → ~/.vim/autoload/terminal.vim
 ```
 
 `README.md` is repository documentation and is excluded from Stow by
@@ -43,6 +45,7 @@ The configuration provides:
 - System clipboard integration when supported by Vim
 - OSC 52 clipboard support for remote editing
 - Built-in netrw file explorer with a toggleable sidebar
+- Toggleable built-in terminal scoped to the current tab page
 - Tab-page management and navigation
 - `Ctrl-s` mappings for writing the current buffer
 - Shortcuts for moving lines and Visual-mode selections
@@ -174,6 +177,42 @@ To work with the explorer, move focus to its window using Vim's normal window na
 Directories are browsed inside the explorer. Selecting a file with Enter opens that file in a new tab page and closes the originating explorer window. The newly opened file receives focus.
 
 The explorer is temporary and scoped to the current tab page. `Space e` can be used from any tab page to open an explorer when one is needed, and toggles an existing explorer in the current tab closed.
+
+
+## Terminal
+
+The configuration provides a toggleable terminal using Vim's built-in terminal
+support.
+
+Toggle the terminal with:
+
+```text
+Space t t            Toggle terminal
+```
+
+The implementation lives in:
+
+```
+~/.vim/autoload/terminal.vim
+```
+
+When opened, the terminal appears in a horizontal window at the bottom of the current tab page. The window is 12 lines high and receives focus immediately so commands can be entered directly.
+
+Toggling the terminal closed hides its window without terminating the running shell. Opening it again restores the same terminal buffer and shell session.
+
+Terminal buffers are tracked per tab page, allowing each tab to maintain its own terminal session.
+
+When supported by the installed Vim version, the terminal also uses a winbar to provide a visual boundary between the terminal and the editor.
+
+Vim must be compiled with terminal support for this feature to work. This can be checked with:
+
+```
+:echo has('terminal')
+```
+
+A result of `1` indicates that terminal support is available.
+
+
 
 
 ## Saving
@@ -311,9 +350,15 @@ A vertical guide is displayed at column 85.
 
 24-bit terminal colors are enabled when the Vim build supports `termguicolors`.
 
-The status line is always displayed and provides information about the current buffer and cursor position.
+The status line is always displayed and provides the current Vim mode together with information about the current buffer and cursor position.
 
 The left side shows the current file path together with indicators when the buffer is modified, read-only, or a help buffer.
+
+The current editing mode is displayed at the far left using readable names such as `NORMAL`, `INSERT`, `VISUAL`, `REPLACE`, `COMMAND`, and `TERMINAL`.
+
+Vim's traditional `-- INSERT --`, `-- VISUAL --`, and similar mode messages are disabled because that information is already present in the status line.
+
+When the installed Vim version supports the `ModeChanged` event, the status line is redrawn immediately when the editing mode changes.
 
 The right side shows:
 
@@ -424,6 +469,7 @@ should not be committed to the repository.
 | `Alt-Down` | Normal / Visual | Move line or selection down |
 | `Alt-Up` | Normal / Visual | Move line or selection up |
 | `Space e` | Normal | Toggle file explorer |
+| `Space t t` | Normal | Toggle terminal |
 | `gt` | Normal | Next tab page |
 | `gT` | Normal | Previous tab page |
 | `Alt-Left` | Normal | Previous tab page |
