@@ -49,7 +49,7 @@ The configuration provides:
 - Visible whitespace
 - Scrolling margins and an 85-column guide
 - 24-bit terminal color support when available
-- A dark colorscheme with interactive colorscheme browsing
+- A transparent default colorscheme with interactive colorscheme browsing
 - Custom line-number and whitespace highlighting
 - Persistent undo when supported by Vim
 - Insert-mode completion configuration
@@ -310,6 +310,10 @@ A vertical guide is displayed at column 85.
 ## Colorschemes
 
 The configuration uses a dark background and `koehler` as its default colorscheme.
+
+At startup, the background of the default colorscheme is made transparent by clearing the background colors of Vim's main editing and common UI highlight groups. This allows the terminal emulator's background to show through. Actual transparency must be configured in the terminal emulator itself.
+
+The transparency overrides apply only to the colorscheme loaded during startup. They are intentionally not reapplied when browsing colorschemes with F7 and F8, so each browsed colorscheme is displayed with its own original background and highlight settings.
 
 Available colorschemes can be browsed interactively:
 

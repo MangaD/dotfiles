@@ -442,6 +442,31 @@ silent! colorscheme koehler
 
 
 " -----------------------------------------------------------------------------
+" Transparent background
+" -----------------------------------------------------------------------------
+
+" Make the initially loaded colorscheme use the terminal's background.
+"
+" Vim itself does not create transparency. The terminal emulator must have
+" transparency enabled separately. Setting these background colors to NONE
+" prevents Vim from painting an opaque background in the corresponding areas,
+" allowing the terminal background to show through.
+"
+" These settings are intentionally applied only once, after the colorscheme
+" selected above has been loaded. They are NOT reapplied when another
+" colorscheme is selected with F7 or F8. This allows colorscheme cycling to
+" display each theme exactly as it defines itself, including its background
+" colors.
+highlight Normal       ctermbg=NONE guibg=NONE
+silent! highlight NormalNC     ctermbg=NONE guibg=NONE
+highlight SignColumn   ctermbg=NONE guibg=NONE
+highlight LineNr       ctermbg=NONE guibg=NONE
+highlight CursorLineNr ctermbg=NONE guibg=NONE
+highlight CursorLine   ctermbg=NONE guibg=NONE
+silent! highlight EndOfBuffer  ctermbg=NONE guibg=NONE
+
+
+" -----------------------------------------------------------------------------
 " Colorscheme notification
 " -----------------------------------------------------------------------------
 
