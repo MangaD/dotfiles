@@ -122,7 +122,7 @@ The interactive Bash configuration can make use of:
 * `bat` — syntax-highlighting file viewer
 * Universal Ctags — C/C++ source-code analysis used by `cppsymbols`
 * `jq` — processing, sorting, and formatting of Ctags JSON output
-* `tmux` — automatic persistent terminal sessions for SSH logins
+* `tmux` — automatic persistent terminal sessions for SSH logins and host clipboard access through OSC 52
 
 The `cppsymbols`, `cppsyms`, and `cppsymsloc` helpers require both Universal
 Ctags and `jq`.
@@ -516,6 +516,7 @@ remain aligned.
 * Colorized `ls` and `grep` output when GNU `dircolors` is available
 * Programmable command completion when `bash-completion` is installed
 * Compatibility aliases for tools whose command names differ between distributions
+* A `copy` helper for copying text to the host system clipboard through OSC 52
 * Modular Bash helper functions loaded from `~/.config/bash/functions/`
 * C/C++ source inspection using Universal Ctags and `jq`
 * Support for machine-specific settings through `~/.bashrc.local`
@@ -575,13 +576,44 @@ source files and source trees rather than mixed-language directories.
 The helper requires both Universal Ctags and `jq` to be installed and
 available in `PATH`.
 
-Larger shell helpers are kept outside `.bashrc` so that the main interactive
-shell configuration remains easy to read and maintain. Additional substantial
-helpers can be added under `~/.config/bash/functions/` as they become useful.
+The Bash configuration also provides a `copy` helper for copying text to the
+host terminal's system clipboard:
 
-Machine-specific paths should be placed in `~/.bashrc.local` rather than the
-tracked `.bashrc`. For example, a manually installed Neovim on a Raspberry Pi
-can be added with:
+```bash
+copy "hello world"
+printf '%s' "hello world" | copy
+cat file.txt | copy
+```
+
+When arguments are supplied, `copy` copies them without adding a trailing
+newline. When standard input is used, the input is preserved exactly, including
+any trailing newline. For example:
+
+```bash
+echo "hello" | copy
+```
+
+copies the newline written by `echo`, while:
+
+```bash
+printf '%s' "hello" | copy
+```
+
+does not.
+
+The helper works both directly over SSH and from inside tmux. Outside tmux, it
+encodes the input with Base64 and emits an OSC 52 escape sequence directly.
+Inside tmux, it uses `tmux load-buffer -w` and lets tmux handle the OSC 52
+clipboard operation.
+
+In both cases, the OSC 52 sequence travels through the terminal connection to
+the local terminal emulator, which places the contents in the host system
+clipboard. The local terminal emulator must support OSC 52 clipboard
+operations.
+
+Larger shell helpers are kept outside `.bashrc` so that the main interactive shell configuration remains easy to read and maintain. Additional substantial helpers can be added under `~/.config/bash/functions/` as they become useful.
+
+Machine-specific paths should be placed in `~/.bashrc.local` rather than the tracked `.bashrc`. For example, a manually installed Neovim on a Raspberry Pi can be added with:
 
 ```bash
 export PATH="/opt/nvim-linux-arm64/bin:$PATH"
@@ -739,8 +771,30 @@ Prefix + Ctrl-r     Restore the most recently saved environment
 Automatic periodic saving and startup restoration are handled by
 `tmux-continuum`.
 
-tmux's clipboard integration is also used by the Vim configuration when
-copying remote selections to the local terminal clipboard through OSC 52.
+The tmux configuration enables system clipboard integration with:
+
+```tmux
+set -s set-clipboard on
+```
+
+This allows tmux and applications running inside tmux to communicate with the
+outer terminal's system clipboard through OSC 52.
+
+The Bash `copy` helper uses this integration when running inside tmux by passing
+its input to `tmux load-buffer -w`. When Bash is running outside tmux, the
+helper emits OSC 52 directly instead. This allows the same `copy` command to
+work with both of these remote-shell configurations:
+
+```text
+local terminal → SSH → Bash
+local terminal → SSH → tmux → Bash
+```
+
+The Vim configuration also uses OSC 52 when copying remote selections to the
+local system clipboard.
+
+In all cases, the terminal emulator on the local host must support OSC 52
+clipboard operations.
 
 ### GDB
 

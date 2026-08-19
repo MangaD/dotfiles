@@ -194,6 +194,53 @@ fi
 # Shell functions
 # =============================================================================
 
+# =============================================================================
+# Clipboard
+# =============================================================================
+
+# Copy text to the host terminal's system clipboard.
+#
+# This works both directly over SSH and from inside tmux, provided that the
+# local terminal emulator supports OSC 52 clipboard operations.
+#
+# With arguments, copy the arguments without adding a trailing newline:
+#
+#     copy "hello world"
+#
+# With no arguments, copy standard input exactly as supplied:
+#
+#     pwd | copy
+#     cat file.txt | copy
+#     printf '%s' "hello world" | copy
+#
+# When running inside tmux, use tmux's clipboard integration. `load-buffer -w`
+# loads the input into a tmux paste buffer and also sends it to the outer
+# terminal's clipboard using OSC 52.
+#
+# When running outside tmux, encode the input as Base64 and emit the OSC 52
+# escape sequence directly. Over SSH, the sequence is passed back to the local
+# terminal emulator, which places the decoded contents in the host clipboard.
+#
+# Standard input is piped directly into tmux or `base64` rather than stored in a
+# shell variable. This preserves the input exactly, including trailing newlines.
+copy() {
+    if [[ -n "$TMUX" ]]; then
+        if (($#)); then
+            printf '%s' "$*" | tmux load-buffer -w -
+        else
+            tmux load-buffer -w -
+        fi
+    else
+        if (($#)); then
+            printf '\033]52;c;%s\a' \
+                "$(printf '%s' "$*" | base64 -w0)"
+        else
+            printf '\033]52;c;%s\a' \
+                "$(base64 -w0)"
+        fi
+    fi
+}
+
 # Load reusable Bash helper functions kept outside .bashrc.
 #
 # Larger helpers live in separate files so the main shell configuration remains

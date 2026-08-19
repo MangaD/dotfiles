@@ -123,8 +123,16 @@ set mouse=a
 "
 " This is separate from the OSC 52 mapping below. Native clipboard integration
 " is used when available, while <Leader>y provides an explicit OSC 52 path for
-" environments such as remote sessions, tmux, and containers.
-set clipboard=unnamedplus
+" environments such as remote sessions, tmux, and containers. In these environments,
+" DISPLAY and WAYLAND_DISPLAY may be unavailable even when this Vim build includes
+" clipboard support.
+if has('clipboard')
+            \ && has('unnamedplus')
+            \ && (!empty($DISPLAY) || !empty($WAYLAND_DISPLAY))
+    set clipboard=unnamedplus
+else
+    set clipboard=
+endif
 
 
 " -----------------------------------------------------------------------------
