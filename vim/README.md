@@ -12,6 +12,7 @@ vim/
 ├── .vimrc
 ├── .vim/
 │   └── autoload/
+│       ├── explorer.vim
 │       └── osc52.vim
 └── README.md
 ```
@@ -19,8 +20,9 @@ vim/
 When installed with GNU Stow, the managed files are linked to:
 
 ```text
-vim/.vimrc                    → ~/.vimrc
-vim/.vim/autoload/osc52.vim → ~/.vim/autoload/osc52.vim
+vim/.vimrc                       → ~/.vimrc
+vim/.vim/autoload/explorer.vim   → ~/.vim/autoload/explorer.vim
+vim/.vim/autoload/osc52.vim      → ~/.vim/autoload/osc52.vim
 ```
 
 `README.md` is repository documentation and is excluded from Stow by
@@ -40,6 +42,7 @@ The configuration provides:
 - Mouse support
 - System clipboard integration when supported by Vim
 - OSC 52 clipboard support for remote editing
+- Built-in netrw file explorer with a toggleable sidebar
 - Tab-page management and navigation
 - `Ctrl-s` mappings for writing the current buffer
 - Shortcuts for moving lines and Visual-mode selections
@@ -118,6 +121,14 @@ The tab line is always visible.
 
 Vim tab pages are technically containers for one or more windows rather than one-file-per-tab objects. This configuration nevertheless uses them as a convenient visible way to work with several files.
 
+Vim's normal command-line behavior is preserved. To open multiple files in separate tab pages at startup, use `vim -p` explicitly:
+
+```bash
+vim -p file1.cpp file2.cpp file3.hpp
+```
+
+Starting Vim with multiple file arguments without `-p` does not automatically convert those files into tab pages.
+
 ### Tab Navigation
 
 Vim's native tab mappings remain available:
@@ -139,6 +150,31 @@ Space t l           Move the current tab page right
 ```
 
 Some terminal emulators may intercept `Alt-Left` and `Alt-Right`. `gt` and `gT` remain available in that case.
+
+## File Explorer
+
+The configuration provides a sidebar-style file explorer using Vim's built-in netrw plugin. No external file-explorer plugin is required.
+
+Toggle the explorer with:
+
+```text
+Space e              Toggle file explorer
+```
+
+The implementation lives in:
+
+```
+~/.vim/autoload/explorer.vim
+```
+
+When opened, the explorer appears as a 30-column vertical window on the far left side of the current tab page. Focus is returned to the editor after the explorer is opened, so displaying the sidebar does not interrupt editing.
+
+To work with the explorer, move focus to its window using Vim's normal window navigation commands, such as `Ctrl-w h`.
+
+Directories are browsed inside the explorer. Selecting a file with Enter opens that file in a new tab page and closes the originating explorer window. The newly opened file receives focus.
+
+The explorer is temporary and scoped to the current tab page. `Space e` can be used from any tab page to open an explorer when one is needed, and toggles an existing explorer in the current tab closed.
+
 
 ## Saving
 
@@ -285,9 +321,9 @@ The right side shows:
 - File encoding
 - File format
 - Current line and column
-- Position through the file as a percentage
+- Position through the file (`Top`, `Bot`, `All`, or a percentage)
 
-The status line uses Vim's `StatusLine` highlighting rather than defining its own colors. Its appearance therefore follows the currently selected colorscheme, including colorschemes browsed with F7 and F8.
+The status line uses a transparent background with white text when the default `koehler` colorscheme is loaded at startup. As with the other transparency overrides, these settings are applied only to the initial colorscheme. Themes selected later with F7 and F8 use their own status-line highlighting.
 
 ## Colorschemes
 
@@ -308,7 +344,7 @@ The list is discovered from the colorschemes available in Vim's runtime path, so
 
 Colorscheme changes made with F7 and F8 are temporary. To make a selection permanent, change the `colorscheme` command in `.vimrc`.
 
-The configuration also defines custom highlighting for ordinary line numbers, the current line number, and visible whitespace. Because these highlights are defined after the default colorscheme is loaded, they override the corresponding colors from that scheme at startup.
+The configuration also applies startup-specific highlighting for the status line, tab line, ordinary and current line numbers, and visible whitespace. Because these highlights are defined after the default colorscheme is loaded, they override the corresponding Koehler colors at startup. As with the transparency settings, colorschemes selected later with F7 and F8 are left unmodified.
 
 ## Persistent Undo
 
@@ -387,6 +423,7 @@ should not be committed to the repository.
 | `Alt-k` | Normal / Visual | Move line or selection up |
 | `Alt-Down` | Normal / Visual | Move line or selection down |
 | `Alt-Up` | Normal / Visual | Move line or selection up |
+| `Space e` | Normal | Toggle file explorer |
 | `gt` | Normal | Next tab page |
 | `gT` | Normal | Previous tab page |
 | `Alt-Left` | Normal | Previous tab page |

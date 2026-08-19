@@ -6,6 +6,7 @@
 "
 " The leader key acts as a prefix for related custom commands. For example:
 "
+"     Space + e        Toggle file explorer
 "     Space + t + n    Open a new tab page
 "     Space + t + c    Close the current tab page
 "
@@ -171,6 +172,23 @@ set showtabline=2
 " =============================================================================
 " Mappings
 " =============================================================================
+
+" -----------------------------------------------------------------------------
+" File explorer
+" -----------------------------------------------------------------------------
+
+" Toggle the built-in netrw file explorer as a sidebar.
+"
+"     Space + e    Toggle file explorer
+"
+" The implementation lives in:
+"
+"     ~/.vim/autoload/explorer.vim
+"
+" Calling explorer#toggle() causes Vim to load that autoload file automatically
+" the first time the function is used.
+nnoremap <Leader>e :call explorer#toggle()<CR>
+
 
 " -----------------------------------------------------------------------------
 " Saving
