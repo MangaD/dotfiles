@@ -422,6 +422,52 @@ endif
 
 
 " =============================================================================
+" Status line
+" =============================================================================
+
+" Always display a status line for the current window.
+"
+" Values:
+"
+"     0    Never
+"     1    Only when more than one window is open
+"     2    Always
+set laststatus=2
+
+" Configure the information displayed in the status line.
+"
+" Left side:
+"
+"     %f    Buffer file path
+"     %m    Modified flag ([+])
+"     %r    Read-only flag ([RO])
+"     %h    Help-buffer flag ([Help])
+"
+" %= separates the left and right sections and pushes everything that follows
+" it to the right edge of the window.
+"
+" Right side:
+"
+"     %y    File type
+"     %{&fileencoding?...}
+"           File encoding, falling back to Vim's global encoding when the
+"           buffer does not define one explicitly
+"     %{&fileformat}
+"           File format (unix, dos, or mac)
+"     %l    Current line number
+"     %c    Current column number
+"     %p%%  Position through the file as a percentage
+"     %P    Vim-style position: Top, Bot, All, or 63%
+set statusline=\ %f\ %m%r%h
+set statusline+=%=
+set statusline+=\ %y
+set statusline+=\ \|\ %{&fileencoding!=''?&fileencoding:&encoding}
+set statusline+=\ \|\ %{&fileformat}
+set statusline+=\ \|\ %l,%c
+set statusline+=\ \|\ %P\ 
+
+
+" =============================================================================
 " Colorscheme
 " =============================================================================
 
@@ -463,6 +509,20 @@ highlight SignColumn   ctermbg=NONE guibg=NONE
 highlight LineNr       ctermbg=NONE guibg=NONE
 highlight CursorLineNr ctermbg=NONE guibg=NONE
 highlight CursorLine   ctermbg=NONE guibg=NONE
+
+" Keep status lines transparent while using white text for good contrast.
+highlight StatusLine   ctermfg=White ctermbg=NONE guifg=#ffffff guibg=NONE
+highlight StatusLineNC ctermfg=White ctermbg=NONE guifg=#ffffff guibg=NONE
+
+" Tab line. Keep it transparent.
+"
+" Use a subdued light gray for inactive tabs and a brighter, bold foreground
+" for the active tab so that it remains easy to distinguish without relying on
+" background colors.
+highlight TabLine     ctermfg=Gray  ctermbg=NONE guifg=#808080 guibg=NONE
+highlight TabLineSel  ctermfg=White ctermbg=NONE guifg=#ffffff guibg=NONE cterm=bold gui=bold
+highlight TabLineFill               ctermbg=NONE                 guibg=NONE
+
 silent! highlight EndOfBuffer  ctermbg=NONE guibg=NONE
 
 

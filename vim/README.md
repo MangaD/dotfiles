@@ -48,6 +48,7 @@ The configuration provides:
 - Four-column tab and indentation settings
 - Visible whitespace
 - Scrolling margins and an 85-column guide
+- A persistent status line showing file, buffer, encoding, format, and position information
 - 24-bit terminal color support when available
 - A transparent default colorscheme with interactive colorscheme browsing
 - Custom line-number and whitespace highlighting
@@ -306,6 +307,20 @@ Vim attempts to keep five lines visible above and below the cursor and five colu
 A vertical guide is displayed at column 85.
 
 24-bit terminal colors are enabled when the Vim build supports `termguicolors`.
+
+The status line is always displayed and provides information about the current buffer and cursor position.
+
+The left side shows the current file path together with indicators when the buffer is modified, read-only, or a help buffer.
+
+The right side shows:
+
+- File type
+- File encoding
+- File format
+- Current line and column
+- Position through the file as a percentage
+
+The status line uses Vim's `StatusLine` highlighting rather than defining its own colors. Its appearance therefore follows the currently selected colorscheme, including colorschemes browsed with F7 and F8.
 
 ## Colorschemes
 
