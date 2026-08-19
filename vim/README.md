@@ -41,7 +41,6 @@ The configuration provides:
 - System clipboard integration when supported by Vim
 - OSC 52 clipboard support for remote editing
 - Tab-page management and navigation
-- Automatic conversion of multiple command-line files into tab pages
 - `Ctrl-s` mappings for writing the current buffer
 - Shortcuts for moving lines and Visual-mode selections
 - Case-aware incremental searching
@@ -118,38 +117,6 @@ Filetype-specific indentation is preferred over Vim's older general-purpose `sma
 The tab line is always visible.
 
 Vim tab pages are technically containers for one or more windows rather than one-file-per-tab objects. This configuration nevertheless uses them as a convenient visible way to work with several files.
-
-### Opening Multiple Files
-
-When Vim starts with multiple file arguments, the configuration opens those arguments as tab pages automatically.
-
-For example:
-
-```bash
-vim foo.cpp foo.hpp main.cpp
-```
-
-behaves similarly to:
-
-```bash
-vim -p foo.cpp foo.hpp main.cpp
-```
-
-With zero or one file argument, normal Vim startup behavior is unchanged.
-
-This behavior applies to the complete argument list. A command such as:
-
-```bash
-vim *.cpp
-```
-
-therefore creates a tab page for every matching file.
-
-A file can also be opened manually in a new tab with:
-
-```vim
-:tabedit file.cpp
-```
 
 ### Tab Navigation
 

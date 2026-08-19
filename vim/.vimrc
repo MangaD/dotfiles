@@ -168,28 +168,6 @@ vnoremap <Leader>y y:call osc52#copy(@")<CR>gv
 set showtabline=2
 
 
-" -----------------------------------------------------------------------------
-" Command-line files
-" -----------------------------------------------------------------------------
-
-" When Vim starts with multiple file arguments, display each file in its own
-" tab page.
-"
-" This makes:
-"
-"     vim file1.cpp file2.cpp file3.hpp
-"
-" behave like:
-"
-"     vim -p file1.cpp file2.cpp file3.hpp
-"
-" With zero or one file argument, Vim's normal startup behavior is unchanged.
-"
-" Note that this applies to every argument in the argument list. For example,
-" `vim *.cpp` will create one tab page for every matching C++ file.
-autocmd VimEnter * if argc() > 1 | tab all | endif
-
-
 " =============================================================================
 " Mappings
 " =============================================================================
