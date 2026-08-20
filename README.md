@@ -23,6 +23,12 @@ dotfiles/
 │   └── .config/
 │       └── bat/
 │           └── config
+├── bin/
+│   ├── .stow-local-ignore
+│   ├── .local/
+│   │   └── bin/
+│   │       └── bz
+│   └── README.md
 ├── gdb/
 │   └── .gdbinit
 ├── git/
@@ -51,6 +57,7 @@ For example:
 bash/.bash_profile → ~/.bash_profile
 bash/.bashrc       → ~/.bashrc
 bash/.config/bash/functions/cppsymbols.sh → ~/.config/bash/functions/cppsymbols.sh
+bin/.local/bin/bz  → ~/.local/bin/bz
 gdb/.gdbinit       → ~/.gdbinit
 git/.gitconfig     → ~/.gitconfig
 ssh/.ssh/config    → ~/.ssh/config
@@ -225,7 +232,7 @@ in this repository. Private keys and other SSH files should remain in
 Install all packages:
 
 ```bash
-stow --no-folding bash bat gdb git ssh tmux vim
+stow --no-folding bash bat bin gdb git ssh tmux vim
 ```
 
 Or install packages individually:
@@ -233,6 +240,7 @@ Or install packages individually:
 ```bash
 stow --no-folding bash
 stow --no-folding bat
+stow --no-folding bin
 stow --no-folding gdb
 stow --no-folding git
 stow --no-folding ssh
@@ -340,8 +348,10 @@ This can be useful after changing the structure of a package.
 Some configuration should apply only to a particular machine or should
 not be stored in a public repository.
 
-Files ending in `.local` are ignored by Git and can be used for this
-purpose.
+Machine-specific files such as `~/.bashrc.local`, `~/.vimrc.local`, and
+`~/.ssh/config.local` should remain outside the tracked Stow packages.
+Files that contain private information should also be excluded explicitly
+when necessary.
 
 ### Bash
 
@@ -430,8 +440,7 @@ colorscheme desert
 ```
 
 `~/.vimrc.local` is not part of the `vim` Stow package and should remain
-outside the repository. The repository's `*.local` Git ignore rule prevents
-machine-specific `.local` files from being committed accidentally.
+outside the repository.
 
 ## Sensitive Information
 
@@ -642,6 +651,25 @@ syntax-highlighting file viewer.
 On Debian and Ubuntu, the executable may be installed as `batcat`. The
 Bash configuration provides a `bat` alias when `batcat` is installed but
 `bat` is not available.
+
+### Bin
+
+The `bin` package contains personal command-line utilities installed under
+`~/.local/bin/`.
+
+It currently provides `bz`, a small Bash client for Bugzilla's REST API.
+`bz` can display bug details, comments, and change history; search for bugs;
+and print the corresponding Bugzilla web URL.
+
+The command requires Bash 4 or later, `curl`, and `jq`. Bugzilla connection
+settings are read from:
+
+```text
+~/.config/bz/config
+```
+
+For configuration, authentication, commands, search options, and usage
+examples, see [`bin/README.md`](bin/README.md).
 
 ### Git
 
@@ -928,14 +956,15 @@ tools:
 * Vim — terminal text editor with tab-page, clipboard, OSC 52, colorscheme,
   persistent-undo, and C/C++ editing configuration
 * Universal Ctags — source-code indexing and C/C++ symbol discovery used by the `cppsymbols` Bash helper
-* jq — JSON processing used to sort and format `cppsymbols` output
+* `bz` — personal Bugzilla REST API command-line client
+* `jq` — JSON processing used by `cppsymbols` and `bz`
 * GNU Stow — dotfile symlink management
 * bat — syntax-highlighting file viewer
 * Git LFS — large-file support for Git
 * Screenfetch — Raspbian ASCII artwork for the login banner
 * figlet — large machine-name heading in the login banner
 * lolcat — optional color for the figlet heading
-* curl — public-IP and weather lookups used by the login banner
+* `curl` — HTTP client used by `bz` and by public-IP and weather lookups in the login banner
 * Raspberry Pi `vcgencmd` — CPU temperature, clock, and throttling information
 
 The repository manages configuration for these tools but does not install them.
@@ -949,7 +978,6 @@ Configuration that may be useful to manage in the future includes:
 
 -   `.profile` --- login environment configuration
 -   `.inputrc` --- GNU Readline configuration
--   `~/.local/bin/` --- personal scripts and commands
 -   `~/.config/systemd/user/` --- user-level systemd services
 -   Terminal emulator configuration
 -   Other application configuration under `~/.config/`

@@ -1,0 +1,820 @@
+#!/usr/bin/env bash
+
+# bz - small terminal client for Bugzilla's REST API
+#
+# Dependencies:
+#   bash 4+
+#   curl
+#   jq
+#
+# Configuration:
+#   ~/.config/bz/config
+#
+# Example config:
+#   BASE_URL="https://bugs.example.com"
+#
+# Examples:
+#   bz 77165
+#   bz comments 77165
+#   bz history 77165
+#   bz search firefox
+#   bz search --status NEW
+#   bz search --product Firefox
+#   bz url 77165
+
+set -euo pipefail
+
+VERSION="0.1.0"
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bz"
+CONFIG_FILE="$CONFIG_DIR/config"
+
+BASE_URL="${BASE_URL:-}"
+API_KEY="${API_KEY:-}"
+COLOR="${COLOR:-auto}"
+
+# ----------------------------------------------------------------------
+# Configuration
+# ----------------------------------------------------------------------
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$CONFIG_FILE"
+    fi
+
+    BASE_URL="${BASE_URL%/}"
+}
+
+die() {
+    echo "bz: $*" >&2
+    exit 1
+}
+
+require_cmd() {
+    command -v "$1" >/dev/null 2>&1 ||
+        die "required command not found: $1"
+}
+
+require_base_url() {
+    [[ -n "$BASE_URL" ]] ||
+        die "BASE_URL is not configured in $CONFIG_FILE"
+
+    [[ "$BASE_URL" == http://* || "$BASE_URL" == https://* ]] ||
+        die "BASE_URL must start with http:// or https://"
+}
+
+setup_api() {
+    require_cmd curl
+    require_cmd jq
+    require_base_url
+}
+
+# ----------------------------------------------------------------------
+# Colours
+# ----------------------------------------------------------------------
+
+setup_colors() {
+    if [[ -n "${NO_COLOR:-}" ]]; then
+        COLOR="never"
+    fi
+
+    case "$COLOR" in
+        auto)
+            if [[ -t 1 ]]; then
+                COLOR="always"
+            else
+                COLOR="never"
+            fi
+            ;;
+        always|never)
+            ;;
+        *)
+            die "invalid COLOR value: $COLOR (expected auto, always, or never)"
+            ;;
+    esac
+
+    if [[ "$COLOR" == "always" ]]; then
+        BOLD=$'\033[1m'
+        RESET=$'\033[0m'
+    else
+        BOLD=""
+        RESET=""
+    fi
+}
+
+# ----------------------------------------------------------------------
+# Validation
+# ----------------------------------------------------------------------
+
+validate_bug_id() {
+    local id="$1"
+
+    [[ "$id" =~ ^[0-9]+$ ]] ||
+        die "invalid bug ID: $id"
+}
+
+validate_positive_integer() {
+    local value="$1"
+    local name="$2"
+
+    [[ "$value" =~ ^[1-9][0-9]*$ ]] ||
+        die "$name requires a positive integer"
+}
+
+# ----------------------------------------------------------------------
+# HTTP
+# ----------------------------------------------------------------------
+
+api() {
+    local endpoint="$1"
+    shift
+
+    local url="${BASE_URL}/rest${endpoint}"
+
+    local args=(
+        --silent
+        --show-error
+        --header "Accept: application/json"
+        --header "Content-Type: application/json"
+        --url "$url"
+    )
+
+    if [[ -n "$API_KEY" ]]; then
+        args+=(--get)
+        args+=(--data-urlencode "api_key=${API_KEY}")
+    fi
+
+    # Additional arguments are curl arguments.
+    #
+    # Append the HTTP status on a separate final line so that Bugzilla's
+    # response body can still be inspected when an HTTP error occurs.
+    local result
+
+    if ! result="$(
+        curl "${args[@]}" "$@" \
+            --write-out $'\n%{http_code}'
+    )"; then
+        die "request failed: $url"
+    fi
+
+    local status
+    local response
+
+    status="${result##*$'\n'}"
+    response="${result%$'\n'*}"
+
+    if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
+        if jq -e '.error == true' >/dev/null 2>&1 <<<"$response"; then
+            jq -r \
+                '"Bugzilla error \(.code // "?"): \(.message // "unknown error")"' \
+                <<<"$response" >&2
+        elif [[ -n "$response" ]]; then
+            echo "bz: HTTP $status" >&2
+            printf '%s\n' "$response" >&2
+        else
+            echo "bz: HTTP $status" >&2
+        fi
+
+        return 1
+    fi
+
+    if ! jq -e . >/dev/null 2>&1 <<<"$response"; then
+        echo "bz: server returned invalid JSON" >&2
+        return 1
+    fi
+
+    if jq -e '.error == true' >/dev/null 2>&1 <<<"$response"; then
+        jq -r \
+            '"Bugzilla error \(.code // "?"): \(.message // "unknown error")"' \
+            <<<"$response" >&2
+        return 1
+    fi
+
+    printf '%s' "$response"
+}
+
+# ----------------------------------------------------------------------
+# Formatting helpers
+# ----------------------------------------------------------------------
+
+value() {
+    local value="${1:-}"
+
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        printf "%s" "-"
+    else
+        printf "%s" "$value"
+    fi
+}
+
+array_value() {
+    local value="${1:-}"
+
+    if [[ -z "$value" || "$value" == "null" || "$value" == "[]" ]]; then
+        printf "%s" "-"
+    else
+        jq -r 'join(", ")' <<<"$value"
+    fi
+}
+
+user_detail() {
+    local json="$1"
+    local fallback="${2:--}"
+
+    jq -r --arg fallback "$fallback" '
+        if type == "object" then
+            if .real_name and .name then
+                "\(.real_name) <\(.name)>"
+            elif .name then
+                .name
+            elif .real_name then
+                .real_name
+            else
+                $fallback
+            end
+        else
+            $fallback
+        end
+    ' <<<"$json"
+}
+
+# ----------------------------------------------------------------------
+# Get bug
+# ----------------------------------------------------------------------
+
+get_bug() {
+    local id="$1"
+
+    validate_bug_id "$id"
+
+    local response
+    if ! response="$(api "/bug/${id}")"; then
+        exit 1
+    fi
+
+    local bug
+    bug="$(jq -c '.bugs[0] // null' <<<"$response")"
+
+    [[ "$bug" != "null" ]] ||
+        die "bug $id was not found"
+
+    local bug_id summary
+
+    bug_id="$(jq -r '.id' <<<"$bug")"
+    summary="$(jq -r '.summary // ""' <<<"$bug")"
+
+    echo
+    printf "%sBug %s%s: %s\n" "$BOLD" "$bug_id" "$RESET" "$summary"
+    printf "%s════════════════════════════════════════════════════════════%s\n" \
+        "$BOLD" "$RESET"
+    echo
+
+    # Core identification/state
+    printf "%-18s %s\n" "Status" \
+        "$(jq -r '.status // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Resolution" \
+        "$(value "$(jq -r '.resolution // empty' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Alias" \
+        "$(array_value "$(jq -c '.alias // []' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Product" \
+        "$(jq -r '.product // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Component" \
+        "$(jq -r '.component // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Classification" \
+        "$(jq -r '.classification // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Version" \
+        "$(jq -r '.version // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Platform" \
+        "$(jq -r '.platform // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "OS" \
+        "$(jq -r '.op_sys // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Priority" \
+        "$(jq -r '.priority // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Severity" \
+        "$(jq -r '.severity // empty' <<<"$bug")"
+
+    echo
+
+    # People
+    local assignee_detail assignee
+    assignee_detail="$(jq -c '.assigned_to_detail // null' <<<"$bug")"
+    assignee="$(jq -r '.assigned_to // "-"' <<<"$bug")"
+
+    printf "%-18s %s\n" "Assignee" \
+        "$(user_detail "$assignee_detail" "$assignee")"
+
+    local reporter_detail reporter
+    reporter_detail="$(jq -c '.creator_detail // null' <<<"$bug")"
+    reporter="$(jq -r '.creator // "-"' <<<"$bug")"
+
+    printf "%-18s %s\n" "Reporter" \
+        "$(user_detail "$reporter_detail" "$reporter")"
+
+    local qa_detail qa_contact
+    qa_detail="$(jq -c '.qa_contact_detail // null' <<<"$bug")"
+    qa_contact="$(jq -r '.qa_contact // "-"' <<<"$bug")"
+
+    printf "%-18s %s\n" "QA Contact" \
+        "$(user_detail "$qa_detail" "$qa_contact")"
+
+    printf "%-18s %s\n" "CC" \
+        "$(array_value "$(jq -c '.cc // []' <<<"$bug")")"
+
+    echo
+
+    # Relationships
+    printf "%-18s %s\n" "Depends on" \
+        "$(array_value "$(jq -c '.depends_on // []' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Blocks" \
+        "$(array_value "$(jq -c '.blocks // []' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Duplicate of" \
+        "$(value "$(jq -r '.dupe_of // empty' <<<"$bug")")"
+
+    printf "%-18s %s\n" "See also" \
+        "$(array_value "$(jq -c '.see_also // []' <<<"$bug")")"
+
+    echo
+
+    # Miscellaneous standard fields
+    printf "%-18s %s\n" "URL" \
+        "$(value "$(jq -r '.url // empty' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Keywords" \
+        "$(array_value "$(jq -c '.keywords // []' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Whiteboard" \
+        "$(value "$(jq -r '.whiteboard // empty' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Target milestone" \
+        "$(value "$(jq -r '.target_milestone // empty' <<<"$bug")")"
+
+    printf "%-18s %s\n" "Deadline" \
+        "$(value "$(jq -r '.deadline // empty' <<<"$bug")")"
+
+    echo
+
+    # Time tracking. These fields may be absent for users without
+    # time-tracking permissions.
+    if jq -e \
+        'has("estimated_time") or has("remaining_time") or has("actual_time")' \
+        >/dev/null <<<"$bug"; then
+
+        echo "${BOLD}Time tracking${RESET}"
+
+        if jq -e 'has("estimated_time")' >/dev/null <<<"$bug"; then
+            printf "%-18s %s hours\n" "Estimated" \
+                "$(jq -r '.estimated_time' <<<"$bug")"
+        fi
+
+        if jq -e 'has("remaining_time")' >/dev/null <<<"$bug"; then
+            printf "%-18s %s hours\n" "Remaining" \
+                "$(jq -r '.remaining_time' <<<"$bug")"
+        fi
+
+        if jq -e 'has("actual_time")' >/dev/null <<<"$bug"; then
+            printf "%-18s %s hours\n" "Actual" \
+                "$(jq -r '.actual_time' <<<"$bug")"
+        fi
+
+        echo
+    fi
+
+    # Flags
+    if jq -e '.flags | length > 0' >/dev/null <<<"$bug"; then
+        echo "${BOLD}Flags${RESET}"
+
+        jq -r '
+            .flags[] |
+            "  \(.name) \(.status)" +
+            (if .requestee then " → \(.requestee)" else "" end)
+        ' <<<"$bug"
+
+        echo
+    fi
+
+    # Timestamps
+    printf "%-18s %s\n" "Created" \
+        "$(jq -r '.creation_time // empty' <<<"$bug")"
+
+    printf "%-18s %s\n" "Last changed" \
+        "$(jq -r '.last_change_time // empty' <<<"$bug")"
+
+    echo
+
+    # Description
+    echo "${BOLD}Description${RESET}"
+    echo "────────────────────────────────────────────────────────────"
+
+    jq -r '.description // "(no description)"' <<<"$bug"
+
+    echo
+}
+
+# ----------------------------------------------------------------------
+# Comments
+# ----------------------------------------------------------------------
+
+get_comments() {
+    local id="$1"
+
+    validate_bug_id "$id"
+
+    local response
+    if ! response="$(api "/bug/${id}/comment")"; then
+        exit 1
+    fi
+
+    while IFS= read -r comment; do
+        local count creator time is_private text
+
+        count="$(jq -r '.count' <<<"$comment")"
+        creator="$(jq -r '.creator' <<<"$comment")"
+        time="$(jq -r '.time' <<<"$comment")"
+        is_private="$(jq -r '.is_private' <<<"$comment")"
+        text="$(jq -r '.text' <<<"$comment")"
+
+        printf '%s#%s  %s  %s%s' \
+            "$BOLD" \
+            "$((count + 1))" \
+            "$creator" \
+            "$time" \
+            "$RESET"
+
+        if [[ "$is_private" == "true" ]]; then
+            printf '  [PRIVATE]'
+        fi
+
+        printf '\n\n%s\n\n' "$text"
+        printf '%s\n\n' \
+            '────────────────────────────────────────────────────────────'
+    done < <(
+        jq -c '.bugs[] .comments[]' <<<"$response"
+    )
+}
+
+# ----------------------------------------------------------------------
+# History
+# ----------------------------------------------------------------------
+
+get_history() {
+    local id="$1"
+
+    validate_bug_id "$id"
+
+    local response
+    if ! response="$(api "/bug/${id}/history")"; then
+        exit 1
+    fi
+
+    while IFS= read -r entry; do
+        local when who
+
+        when="$(jq -r '.when' <<<"$entry")"
+        who="$(jq -r '.who' <<<"$entry")"
+
+        printf '%s%s  %s%s\n' \
+            "$BOLD" \
+            "$when" \
+            "$who" \
+            "$RESET"
+
+        while IFS= read -r change; do
+            local field removed added
+
+            field="$(jq -r '.field_name' <<<"$change")"
+            removed="$(jq -r '.removed // "-"' <<<"$change")"
+            added="$(jq -r '.added // "-"' <<<"$change")"
+
+            printf '  %s: %s -> %s\n' \
+                "$field" \
+                "$removed" \
+                "$added"
+        done < <(
+            jq -c '.changes[]' <<<"$entry"
+        )
+
+        echo
+    done < <(
+        jq -c '.bugs[0].history[]' <<<"$response"
+    )
+}
+
+# ----------------------------------------------------------------------
+# Search
+# ----------------------------------------------------------------------
+
+search_help() {
+    cat <<EOF
+Usage:
+  bz search [OPTIONS] [TEXT]
+
+Options:
+  --status STATUS
+  --product PRODUCT
+  --component COMPONENT
+  --priority PRIORITY
+  --severity SEVERITY
+  --version VERSION
+  --platform PLATFORM
+  --os OS
+  --assignee EMAIL
+  --limit N
+
+Examples:
+  bz search firefox
+  bz search "network error"
+  bz search --status NEW
+  bz search --product Firefox --component General
+  bz search --priority P1
+  bz search --severity critical
+  bz search --assignee user@example.com
+EOF
+}
+
+search_bugs() {
+    local query=""
+    local status=""
+    local product=""
+    local component=""
+    local priority=""
+    local severity=""
+    local version=""
+    local platform=""
+    local os=""
+    local assignee=""
+    local limit="50"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status)
+                [[ $# -ge 2 ]] || die "--status requires a value"
+                status="$2"
+                shift 2
+                ;;
+
+            --product)
+                [[ $# -ge 2 ]] || die "--product requires a value"
+                product="$2"
+                shift 2
+                ;;
+
+            --component)
+                [[ $# -ge 2 ]] || die "--component requires a value"
+                component="$2"
+                shift 2
+                ;;
+
+            --priority)
+                [[ $# -ge 2 ]] || die "--priority requires a value"
+                priority="$2"
+                shift 2
+                ;;
+
+            --severity)
+                [[ $# -ge 2 ]] || die "--severity requires a value"
+                severity="$2"
+                shift 2
+                ;;
+
+            --version)
+                [[ $# -ge 2 ]] || die "--version requires a value"
+                version="$2"
+                shift 2
+                ;;
+
+            --platform)
+                [[ $# -ge 2 ]] || die "--platform requires a value"
+                platform="$2"
+                shift 2
+                ;;
+
+            --os)
+                [[ $# -ge 2 ]] || die "--os requires a value"
+                os="$2"
+                shift 2
+                ;;
+
+            --assignee)
+                [[ $# -ge 2 ]] || die "--assignee requires a value"
+                assignee="$2"
+                shift 2
+                ;;
+
+            --limit)
+                [[ $# -ge 2 ]] || die "--limit requires a value"
+                validate_positive_integer "$2" "--limit"
+                limit="$2"
+                shift 2
+                ;;
+
+            --help|-h)
+                search_help
+                return
+                ;;
+
+            -*)
+                die "unknown search option: $1"
+                ;;
+
+            *)
+                [[ -z "$query" ]] ||
+                    die "search text must be a single argument (quote multi-word searches)"
+
+                query="$1"
+                shift
+                ;;
+        esac
+    done
+
+    local args=(
+        --get
+        --data-urlencode "limit=${limit}"
+    )
+
+    [[ -n "$query" ]] &&
+        args+=(--data-urlencode "summary=${query}")
+
+    [[ -n "$status" ]] &&
+        args+=(--data-urlencode "status=${status}")
+
+    [[ -n "$product" ]] &&
+        args+=(--data-urlencode "product=${product}")
+
+    [[ -n "$component" ]] &&
+        args+=(--data-urlencode "component=${component}")
+
+    [[ -n "$priority" ]] &&
+        args+=(--data-urlencode "priority=${priority}")
+
+    [[ -n "$severity" ]] &&
+        args+=(--data-urlencode "severity=${severity}")
+
+    [[ -n "$version" ]] &&
+        args+=(--data-urlencode "version=${version}")
+
+    [[ -n "$platform" ]] &&
+        args+=(--data-urlencode "platform=${platform}")
+
+    [[ -n "$os" ]] &&
+        args+=(--data-urlencode "op_sys=${os}")
+
+    [[ -n "$assignee" ]] &&
+        args+=(--data-urlencode "assigned_to=${assignee}")
+
+    local response
+    if ! response="$(api "/bug" "${args[@]}")"; then
+        exit 1
+    fi
+
+    local count
+    count="$(jq '.bugs | length' <<<"$response")"
+
+    echo "${BOLD}${count} bug(s)${RESET}"
+    echo
+
+    printf "%-8s %-10s %-10s %-20s %-20s %s\n" \
+        "ID" "STATUS" "PRIORITY" "PRODUCT" "COMPONENT" "SUMMARY"
+
+    printf "%-8s %-10s %-10s %-20s %-20s %s\n" \
+        "--------" "----------" "----------" "--------------------" \
+        "--------------------" "-------"
+
+    jq -r '
+        .bugs[] |
+        [
+            (.id | tostring),
+            (.status // "-"),
+            (.priority // "-"),
+            (.product // "-"),
+            (.component // "-"),
+            (.summary // "-")
+        ] |
+        @tsv
+    ' <<<"$response" |
+        while IFS=$'\t' read -r id status priority product component summary; do
+            printf "%-8s %-10s %-10s %-20s %-20s %s\n" \
+                "$id" "$status" "$priority" "$product" "$component" "$summary"
+        done
+}
+
+# ----------------------------------------------------------------------
+# URL
+# ----------------------------------------------------------------------
+
+show_url() {
+    local id="$1"
+
+    validate_bug_id "$id"
+    require_base_url
+
+    echo "${BASE_URL}/show_bug.cgi?id=${id}"
+}
+
+# ----------------------------------------------------------------------
+# Help
+# ----------------------------------------------------------------------
+
+help() {
+    cat <<EOF
+bz ${VERSION} - terminal Bugzilla REST client
+
+Usage:
+  bz BUG
+  bz comments BUG
+  bz history BUG
+  bz search [OPTIONS] [TEXT]
+  bz url BUG
+  bz version
+  bz help
+
+Commands:
+  BUG                  Display bug details
+  comments BUG         Display comments
+  history BUG          Display change history
+  search               Search for bugs
+  url BUG              Print web URL
+  version              Print version
+  help                 Show help
+
+Examples:
+  bz 77165
+  bz comments 77165
+  bz history 77165
+  bz search firefox
+  bz search --status NEW
+  bz search --priority P1
+  bz search --product Firefox --component General
+
+Configuration:
+  ${CONFIG_FILE}
+
+Environment:
+  BASE_URL             Bugzilla base URL
+  API_KEY              Optional API key
+  COLOR                auto, always, or never
+  NO_COLOR=1           Disable colours
+EOF
+}
+
+# ----------------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------------
+
+load_config
+setup_colors
+
+case "${1:-help}" in
+    help|-h|--help)
+        help
+        ;;
+
+    version|--version)
+        echo "bz ${VERSION}"
+        ;;
+
+    comments)
+        [[ $# -eq 2 ]] || die "usage: bz comments BUG"
+        setup_api
+        get_comments "$2"
+        ;;
+
+    history)
+        [[ $# -eq 2 ]] || die "usage: bz history BUG"
+        setup_api
+        get_history "$2"
+        ;;
+
+    search)
+        shift
+        setup_api
+        search_bugs "$@"
+        ;;
+
+    url)
+        [[ $# -eq 2 ]] || die "usage: bz url BUG"
+        show_url "$2"
+        ;;
+
+    [0-9]*)
+        [[ $# -eq 1 ]] || die "usage: bz BUG"
+        setup_api
+        get_bug "$1"
+        ;;
+
+    *)
+        die "unknown command: $1 (try: bz help)"
+        ;;
+esac
