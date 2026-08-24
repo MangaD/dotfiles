@@ -866,28 +866,55 @@ require("lazy").setup({
     },
 
 
-    -- -----------------------------------------------------------------------------
+    -- -------------------------------------------------------------------------
     -- Language Server Protocol
-    -- -----------------------------------------------------------------------------
+    -- -------------------------------------------------------------------------
 
     {
         "neovim/nvim-lspconfig",
 
         config = function()
-            -- Enable the clangd configuration provided by nvim-lspconfig.
+            -- -----------------------------------------------------------------
+            -- C and C++
+            -- -----------------------------------------------------------------
+
+            -- Enable clangd for C and C++.
             --
-            -- clangd provides C and C++ language intelligence including:
+            -- clangd provides:
             --
             --   - diagnostics
+            --   - completion
             --   - go to definition
             --   - references
             --   - hover documentation
             --   - symbol renaming
             --   - code actions
             --
-            -- The clangd executable must be installed separately and available in
-            -- PATH. Neovim does not install language servers itself.
+            -- The clangd executable must be installed separately and available
+            -- in PATH.
             vim.lsp.enable("clangd")
+
+
+            -- -----------------------------------------------------------------
+            -- Python
+            -- -----------------------------------------------------------------
+
+            -- Enable basedpyright for Python.
+            --
+            -- basedpyright provides:
+            --
+            --   - static type checking
+            --   - diagnostics
+            --   - completion
+            --   - go to definition
+            --   - references
+            --   - hover documentation
+            --   - symbol renaming
+            --   - code actions
+            --
+            -- The basedpyright-langserver executable must be installed
+            -- separately and available in PATH.
+            vim.lsp.enable("basedpyright")
         end,
     },
 
@@ -977,6 +1004,7 @@ local treesitter_languages = {
     gitignore = "gitignore",
     lua = "lua",
     markdown = "markdown",
+    python = "python",
     sshconfig = "ssh_config",
     vim = "vim",
     help = "vimdoc",
@@ -1203,6 +1231,43 @@ vim.api.nvim_create_autocmd("FileType", {
 
 
 -- =============================================================================
+-- Diagnostics
+-- =============================================================================
+
+-- Show diagnostics for the current line in a floating window.
+--
+-- This is useful when a diagnostic message is too long to display completely
+-- inline.
+--
+--     Space + d
+vim.keymap.set("n", "<Leader>d", vim.diagnostic.open_float, {
+    desc = "Show line diagnostics",
+})
+
+
+-- Move to the previous diagnostic in the current buffer and display its
+-- message in a floating window.
+--
+--     [d
+vim.keymap.set("n", "[d", function()
+    vim.diagnostic.jump({ count = -1, float = true })
+end, {
+    desc = "Previous diagnostic",
+})
+
+
+-- Move to the next diagnostic in the current buffer and display its message
+-- in a floating window.
+--
+--     ]d
+vim.keymap.set("n", "]d", function()
+    vim.diagnostic.jump({ count = 1, float = true })
+end, {
+    desc = "Next diagnostic",
+})
+
+
+-- =============================================================================
 -- Language Server Protocol
 -- =============================================================================
 
@@ -1304,7 +1369,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
         -- Enable Neovim's built-in LSP completion for the current buffer.
         --
         -- Completion suggestions are provided by the attached language server.
-        -- For C and C++, this means clangd.
+        --
+        -- Examples:
+        --
+        --   C/C++    clangd
+        --   Python   basedpyright
         --
         -- Completion is integrated with Neovim's normal Insert-mode completion
         -- menu rather than using a separate completion plugin.

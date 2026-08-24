@@ -5,11 +5,12 @@ experience while keeping the configuration understandable and relatively
 lightweight.
 
 The interface takes some inspiration from VS Code, with a file explorer, buffer
-tabs, integrated terminal, status line, icons, multiple color schemes, and
-Tree-sitter syntax highlighting.
+tabs, integrated terminal, status line, icons, multiple color schemes,
+Tree-sitter syntax highlighting, and Language Server Protocol (LSP) support.
 
 The configuration is written in Lua and uses
 [`lazy.nvim`](https://github.com/folke/lazy.nvim) for plugin management.
+
 
 ## Requirements
 
@@ -23,8 +24,85 @@ The configuration requires:
 * `tar`
 * A C compiler
 * `tree-sitter-cli` 0.26.1 or later
+* `clangd` for C and C++ LSP support
+* `basedpyright` for Python LSP support
 
-Some features may require additional external tools as the configuration grows.
+Language servers are external programs and are not installed by Neovim or
+`nvim-lspconfig`. They must be installed separately and available in `PATH`.
+
+
+### Language servers
+
+Language Server Protocol (LSP) support is currently configured for:
+
+| Language | Server |
+| -------- | ------ |
+| C/C++ | `clangd` |
+| Python | `basedpyright` |
+
+Language servers are installed separately from Neovim plugins.
+
+
+#### C and C++
+
+`clangd` must be installed and available in `PATH`.
+
+On Debian-based systems it can be installed with:
+
+```bash
+sudo apt install clangd
+```
+
+Verify the installation with:
+
+```bash
+clangd --version
+```
+
+
+#### Python
+
+Python uses `basedpyright`.
+
+On Debian systems, Python's system environment may be externally managed under
+PEP 668, so `basedpyright` should not be installed into the system Python with
+a normal `pip install`.
+
+Instead, install `pipx`:
+
+```bash
+sudo apt install pipx
+```
+
+Ensure the pipx executable directory is available in `PATH`:
+
+```bash
+pipx ensurepath
+```
+
+Then install `basedpyright` in its own isolated environment:
+
+```bash
+pipx install basedpyright
+```
+
+This provides the executables used from the command line and by Neovim:
+
+```text
+basedpyright
+basedpyright-langserver
+```
+
+Verify the installation with:
+
+```bash
+basedpyright --version
+command -v basedpyright-langserver
+```
+
+The language-server executable must be visible in the environment from which
+Neovim is started.
+
 
 ### Nerd Font
 
@@ -35,6 +113,7 @@ After installing a Nerd Font, configure the terminal emulator to use it.
 
 Without a Nerd Font, Neovim will still work, but some icons may appear as
 missing or incorrect characters.
+
 
 ## Installation
 
@@ -70,6 +149,7 @@ lazy-lock.json
 This file should be committed to the dotfiles repository so plugin versions can
 be reproduced on another machine.
 
+
 ## Features
 
 ### Clipboard integration
@@ -81,6 +161,7 @@ when Neovim is running remotely over SSH or inside tmux.
 
 The `unnamedplus` clipboard is enabled, so normal yank, delete, and paste
 operations use the system clipboard by default.
+
 
 ### Editing
 
@@ -104,12 +185,13 @@ Invisible whitespace is displayed using characters such as:
 →    tabs
 ```
 
+
 ### Saving
 
 The current file can be saved using:
 
 ```text
-Ctrl+S             Save current file
+Ctrl+S              Save current file
 ```
 
 The shortcut works in Normal, Insert, and Visual modes.
@@ -145,18 +227,20 @@ their likely indentation width.
 The detected settings are applied only to that buffer, allowing files in
 different projects to use different indentation conventions.
 
+
 ### Moving lines
 
 Lines can be moved without manually cutting and pasting them.
 
 ```text
-Alt+j             Move line down
-Alt+k             Move line up
-Alt+Down          Move line down
-Alt+Up            Move line up
+Alt+j              Move line down
+Alt+k              Move line up
+Alt+Down           Move line down
+Alt+Up             Move line up
 ```
 
 The same shortcuts work on Visual selections and keep the moved lines selected.
+
 
 ## File Explorer
 
@@ -164,13 +248,14 @@ The same shortcuts work on Visual selections and keep the moved lines selected.
 explorer on the left side of the editor.
 
 ```text
-Ctrl+n            Toggle file explorer
+Ctrl+n              Toggle file explorer
 ```
 
 The explorer displays file, directory, and Git-status icons using
 `nvim-web-devicons`.
 
 Its default width is 30 columns.
+
 
 ## Buffers
 
@@ -180,17 +265,16 @@ buffers across the top of the editor in a tab-like interface.
 These are Neovim **buffers**, not Vim tab pages.
 
 ```text
-Alt+Left          Previous buffer
-Alt+Right         Next buffer
-
-Alt+Shift+Left    Move buffer left
-Alt+Shift+Right   Move buffer right
-
-Alt+w             Close current buffer
+Alt+Left            Previous buffer
+Alt+Right           Next buffer
+Alt+Shift+Left      Move buffer left
+Alt+Shift+Right     Move buffer right
+Alt+w               Close current buffer
 ```
 
 Terminal buffers are deliberately excluded from Bufferline because the terminal
 is treated as a separate editor panel rather than an open file.
+
 
 ### Safe buffer deletion
 
@@ -202,14 +286,15 @@ surrounding window layout, such as the file explorer or integrated terminal.
 
 Buffers containing unsaved changes are not force-closed.
 
+
 ## Integrated Terminal
 
 Neovim includes a toggleable terminal in a horizontal split at the bottom of the
 editor.
 
 ```text
-Ctrl+\            Show/hide terminal
-Esc               Leave Terminal mode
+Ctrl+\              Show/hide terminal
+Esc                 Leave Terminal mode
 ```
 
 The terminal split is 12 lines high.
@@ -219,6 +304,7 @@ process remain alive, so reopening the terminal restores the existing shell
 session rather than starting a new one.
 
 Terminal buffers are hidden from Bufferline.
+
 
 ## Status Line
 
@@ -263,8 +349,13 @@ Tab Size: 4
 Because this reads Neovim's current buffer-local settings, it also reflects
 indentation detected by `guess-indent.nvim`.
 
-LSP-related information becomes useful once Language Server Protocol support is
-configured.
+When an LSP server is attached to the current buffer, the status line displays
+the active LSP client and its progress. For example, C/C++ buffers can show
+`clangd`, while Python buffers can show `basedpyright`.
+
+Diagnostic counts reported by the language server are also displayed in the
+status line.
+
 
 ## Color Schemes
 
@@ -298,14 +389,15 @@ kanagawa-dragon
 Themes can be changed at runtime:
 
 ```text
-F7                 Previous color scheme
-F8                 Next color scheme
+F7                  Previous color scheme
+F8                  Next color scheme
 ```
 
 The selected color scheme name is displayed as a notification.
 
 Changing the theme this way is temporary. Restarting Neovim restores the
 configured default.
+
 
 ## Tree-sitter
 
@@ -321,9 +413,11 @@ Tree-sitter highlighting is currently configured for:
 * Git ignore files
 * Lua
 * Markdown
+* Python
 * SSH config
 * Vim script
 * Vim documentation
+
 
 ### External dependencies
 
@@ -342,12 +436,13 @@ a warning when any are missing.
 Existing parsers may continue working even if an installation dependency is
 missing.
 
+
 ### Installing parsers
 
 Install the configured parsers with:
 
 ```vim
-:TSInstall bash c cpp git_config gitignore lua markdown markdown_inline ssh_config vim vimdoc
+:TSInstall bash c cpp git_config gitignore lua markdown markdown_inline python ssh_config vim vimdoc
 ```
 
 Update installed parsers with:
@@ -357,6 +452,7 @@ Update installed parsers with:
 ```
 
 Tree-sitter parsers are also updated after `nvim-treesitter` itself is updated.
+
 
 ### Troubleshooting
 
@@ -378,8 +474,11 @@ A parser can be installed or reinstalled with:
 For example:
 
 ```vim
-:TSInstall cpp
+:TSInstall python
 ```
+
+If the parser is already installed, `:TSInstall` may have nothing further to
+do.
 
 To inspect the syntax tree for the current buffer:
 
@@ -387,27 +486,127 @@ To inspect the syntax tree for the current buffer:
 :InspectTree
 ```
 
-This is also a useful way to verify that Tree-sitter is active.
+This is also a useful way to verify that Tree-sitter is active for the current
+buffer.
+
+
+## Language Server Protocol
+
+Language Server Protocol support is provided through Neovim's built-in LSP
+client together with `nvim-lspconfig`.
+
+The configuration currently enables:
+
+| Language | Server |
+| -------- | ------ |
+| C/C++ | `clangd` |
+| Python | `basedpyright` |
+
+The language servers provide features such as:
+
+* Diagnostics
+* Code completion
+* Go to definition
+* Find references
+* Hover documentation
+* Symbol renaming
+* Code actions
+
+
+### LSP keybindings
+
+The following mappings are created when an LSP server attaches to the current
+buffer:
+
+```text
+gd                  Go to definition
+gr                  Find references
+K                   Show hover documentation
+Space+r+n           Rename symbol
+Space+c+a           Show code actions
+```
+
+Because these mappings are buffer-local, they are only active in buffers where
+an LSP server is available.
+
+
+### Completion
+
+Neovim's built-in LSP completion is enabled automatically when a language
+server attaches to a buffer.
+
+Completion suggestions are displayed while typing in Insert mode and use
+Neovim's built-in completion facilities rather than a separate completion
+plugin.
+
+The current language servers provide completion for:
+
+```text
+C/C++       clangd
+Python      basedpyright
+```
+
+
+### Diagnostics
+
+Diagnostics reported by language servers are displayed by Neovim and are also
+summarized in the status line and Bufferline.
+
+Useful diagnostic mappings are:
+
+```text
+Space+d             Show diagnostics for the current line
+[d                  Previous diagnostic
+]d                  Next diagnostic
+```
+
+`Space+d` opens the diagnostic message for the current line in a floating
+window.
+
+The previous and next diagnostic mappings move between diagnostics and also
+display the corresponding diagnostic message in a floating window.
+
+
+### LSP troubleshooting
+
+To inspect the LSP configuration and troubleshoot attached language servers,
+run:
+
+```vim
+:checkhealth vim.lsp
+```
+
+The LSP clients attached to the current buffer can also be inspected with:
+
+```vim
+:lua vim.print(vim.lsp.get_clients({ bufnr = 0 }))
+```
+
+For example, a Python buffer with the configured server running should include
+a client named `basedpyright`.
+
 
 ## Plugins
 
 The configuration currently uses:
 
-| Plugin                            | Purpose                         |
-| --------------------------------- | ------------------------------- |
-| `folke/lazy.nvim`                 | Plugin manager                  |
-| `Mofiqul/vscode.nvim`             | VS Code color scheme            |
-| `catppuccin/nvim`                 | Catppuccin color schemes        |
-| `folke/tokyonight.nvim`           | Tokyo Night color schemes       |
-| `rebelot/kanagawa.nvim`           | Kanagawa color schemes          |
-| `ellisonleao/gruvbox.nvim`        | Gruvbox color scheme            |
-| `nvim-tree/nvim-tree.lua`         | File explorer                   |
-| `nvim-tree/nvim-web-devicons`     | Nerd Font icons                 |
-| `nvim-lualine/lualine.nvim`       | Status line                     |
-| `akinsho/bufferline.nvim`         | Buffer tabs                     |
-| `ojroques/nvim-bufdel`            | Safe buffer deletion            |
-| `NMAC427/guess-indent.nvim`       | Automatic indentation detection |
-| `nvim-treesitter/nvim-treesitter` | Tree-sitter parser management   |
+| Plugin                             | Purpose                         |
+| ---------------------------------- | ------------------------------- |
+| `folke/lazy.nvim`                  | Plugin manager                  |
+| `Mofiqul/vscode.nvim`              | VS Code color scheme            |
+| `catppuccin/nvim`                  | Catppuccin color schemes        |
+| `folke/tokyonight.nvim`            | Tokyo Night color schemes       |
+| `rebelot/kanagawa.nvim`            | Kanagawa color schemes          |
+| `ellisonleao/gruvbox.nvim`         | Gruvbox color scheme            |
+| `nvim-tree/nvim-tree.lua`          | File explorer                   |
+| `nvim-tree/nvim-web-devicons`      | Nerd Font icons                 |
+| `nvim-lualine/lualine.nvim`        | Status line                     |
+| `akinsho/bufferline.nvim`          | Buffer tabs                     |
+| `ojroques/nvim-bufdel`             | Safe buffer deletion            |
+| `NMAC427/guess-indent.nvim`         | Automatic indentation detection |
+| `nvim-treesitter/nvim-treesitter`  | Tree-sitter parser management   |
+| `neovim/nvim-lspconfig`             | LSP server configuration        |
+
 
 ## Plugin Management
 
@@ -435,6 +634,77 @@ runs:
 :TSUpdate
 ```
 
+
+### Updating Neovim plugins
+
+Neovim plugins are managed by `lazy.nvim`.
+
+Check for available updates with:
+
+```vim
+:Lazy check
+```
+
+Update plugins with:
+
+```vim
+:Lazy update
+```
+
+After updating, restart Neovim and run:
+
+```vim
+:checkhealth
+```
+
+`lazy.nvim` records the resolved plugin versions in `lazy-lock.json`. This file
+should be committed to the dotfiles repository.
+
+If an update causes problems, the versions recorded in the lockfile can be
+restored with:
+
+```vim
+:Lazy restore
+```
+
+
+### Updating Tree-sitter parsers
+
+Tree-sitter parsers are managed separately from normal Neovim plugins.
+
+Update installed parsers with:
+
+```vim
+:TSUpdate
+```
+
+The `nvim-treesitter` plugin is also configured to run this command after the
+plugin itself is updated.
+
+
+### Updating language servers
+
+Language servers are external programs and are not managed by `lazy.nvim`.
+
+Programs installed through the operating-system package manager should be
+updated through that package manager. For example, `clangd` installed through
+APT is updated through normal Debian package updates.
+
+`basedpyright`, installed with pipx, can be updated with:
+
+```bash
+pipx upgrade basedpyright
+```
+
+These are therefore three separate layers:
+
+```text
+Neovim plugins          lazy.nvim
+Tree-sitter parsers     nvim-treesitter
+Language servers        APT, pipx, or another external package manager
+```
+
+
 ## Health Checks
 
 Neovim provides built-in health checks that are useful when debugging the
@@ -452,15 +722,23 @@ Tree-sitter can be checked specifically with:
 :checkhealth nvim-treesitter
 ```
 
+LSP configuration and attached language servers can be checked with:
+
+```vim
+:checkhealth vim.lsp
+```
+
+
 ## Planned Improvements
 
 The configuration is intentionally being expanded incrementally rather than
 installing a large preconfigured Neovim distribution.
 
+Language Server Protocol support and built-in LSP completion are now configured
+for C, C++, and Python.
+
 Potential additions include:
 
-* Language Server Protocol (LSP) support
-* Code completion
 * Telescope fuzzy finding and project search
 * Git integration
 * Automatic formatting
@@ -471,5 +749,6 @@ Potential additions include:
 * Session/project persistence
 * Keybinding discovery
 
-The next planned addition is **LSP support**, beginning with C and C++ using
-`clangd`.
+The next planned addition is **Telescope**, providing fuzzy file finding,
+project-wide searching, buffer selection, and searchable access to LSP
+information such as definitions, references, symbols, and diagnostics.
