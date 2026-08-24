@@ -447,28 +447,611 @@ endif
 " Status line
 " =============================================================================
 
+" =============================================================================
+" Status-line mode name
+" =============================================================================
+"
 " Return a readable name for Vim's current editing mode.
+"
+" mode(1) is used instead of mode() so that Vim returns the most detailed
+" mode information available.  For example, plain mode() may report Normal
+" mode while mode(1) can distinguish special Normal-mode states such as
+" operator-pending or temporary Normal mode entered from Insert mode.
+"
+" The comments below also show typical ways of reaching each mode.
+"
 function! ModeName()
-    let l:mode = mode()
+    let l:mode = mode(1)
 
+
+    " -------------------------------------------------------------------------
+    " Normal mode
+    " -------------------------------------------------------------------------
+
+    " NORMAL
+    "
+    " Vim's ordinary command mode.
+    "
+    " Enter with:
+    "
+    "     <Esc>
+    "
+    " from Insert, Replace, Visual, Select, and many other modes.
     if l:mode ==# 'n'
         return 'NORMAL'
-    elseif l:mode ==# 'i'
-        return 'INSERT'
+
+
+    " -------------------------------------------------------------------------
+    " Operator-pending modes
+    " -------------------------------------------------------------------------
+    "
+    " These modes occur after entering an operator but before completing the
+    " motion or text object on which that operator will operate.
+    "
+    " For example:
+    "
+    "     d       enters operator-pending mode
+    "     dw      completes the operation by deleting a word
+    "
+    " Other common operators include:
+    "
+    "     c       change
+    "     y       yank
+    "     >       indent
+    "     <       unindent
+    "     =       reindent
+    "
+
+    " O-PENDING
+    "
+    " Generic operator-pending mode.
+    "
+    " Enter, for example, with:
+    "
+    "     d
+    "
+    " Vim now waits for a motion or text object, such as `w` in `dw`.
+    elseif l:mode ==# 'no'
+        return 'O-PENDING'
+
+    " O-CHAR
+    "
+    " Operator-pending mode forced to characterwise operation.
+    "
+    " Typical example:
+    "
+    "     d<C-v>
+    "
+    " while an operator is pending.  <C-v> forces the pending operator to use
+    " characterwise behavior where applicable.
+    "
+    " This is a specialized/transient operator-pending state.
+    elseif l:mode ==# 'nov'
+        return 'O-CHAR'
+
+    " O-LINE
+    "
+    " Operator-pending mode forced to linewise operation.
+    "
+    " Typical example:
+    "
+    "     dV
+    "
+    " `d` starts the operator and `V` forces it to become linewise.
+    "
+    " This is a specialized/transient operator-pending state.
+    elseif l:mode ==# 'noV'
+        return 'O-LINE'
+
+    " O-BLOCK
+    "
+    " Operator-pending mode forced to blockwise operation.
+    "
+    " Typical example:
+    "
+    "     d<C-v>
+    "
+    " depending on the pending operation and Vim version/state.
+    "
+    " This is a specialized/transient operator-pending state.
+    elseif l:mode ==# "no\<C-v>"
+        return 'O-BLOCK'
+
+
+    " -------------------------------------------------------------------------
+    " Temporary Normal modes
+    " -------------------------------------------------------------------------
+    "
+    " These occur when another editing mode temporarily executes a Normal-mode
+    " command.  They are normally very brief and may be difficult to observe
+    " in the status line.
+    "
+
+    " N-INSERT
+    "
+    " Temporary Normal mode entered from Insert mode.
+    "
+    " Enter from Insert mode with:
+    "
+    "     <C-o>
+    "
+    " Vim executes one Normal-mode command and then returns to Insert mode.
+    "
+    " Example:
+    "
+    "     i
+    "     <C-o>w
+    "
+    " executes `w` as one Normal command and then resumes Insert mode.
+    elseif l:mode ==# 'niI'
+        return 'N-INSERT'
+
+    " N-REPLACE
+    "
+    " Temporary Normal mode entered from Replace mode.
+    "
+    " Enter Replace mode:
+    "
+    "     R
+    "
+    " then:
+    "
+    "     <C-o>
+    "
+    " Vim executes one Normal command and returns to Replace mode.
+    elseif l:mode ==# 'niR'
+        return 'N-REPLACE'
+
+    " N-VREPLACE
+    "
+    " Temporary Normal mode entered from Virtual Replace mode.
+    "
+    " Enter Virtual Replace mode with:
+    "
+    "     gR
+    "
+    " then:
+    "
+    "     <C-o>
+    "
+    " Vim executes one Normal command and returns to Virtual Replace mode.
+    elseif l:mode ==# 'niV'
+        return 'N-VREPLACE'
+
+
+    " -------------------------------------------------------------------------
+    " Visual modes
+    " -------------------------------------------------------------------------
+
+    " VISUAL
+    "
+    " Characterwise Visual mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     v
+    "
+    " Movement commands extend the selection character by character.
     elseif l:mode ==# 'v'
         return 'VISUAL'
+
+    " V-LINE
+    "
+    " Linewise Visual mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     V
+    "
+    " Entire lines are selected.
     elseif l:mode ==# 'V'
         return 'V-LINE'
+
+    " V-BLOCK
+    "
+    " Blockwise Visual mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     <C-v>
+    "
+    " This selects a rectangular block of text.
     elseif l:mode ==# "\<C-v>"
         return 'V-BLOCK'
+
+
+    " -------------------------------------------------------------------------
+    " Visual mode entered from Select mode
+    " -------------------------------------------------------------------------
+    "
+    " These are specialized states indicating that Visual mode was entered
+    " while Select mode was active.
+    "
+
+    " V-SELECT
+    "
+    " Characterwise Visual mode entered from Select mode.
+    "
+    " One way to experiment with Select mode is:
+    "
+    "     gh
+    "
+    " followed by a command that switches between Select and Visual behavior.
+    elseif l:mode ==# 'vs'
+        return 'V-SELECT'
+
+    " VL-SELECT
+    "
+    " Linewise Visual mode entered from Select mode.
+    "
+    " This is primarily an internal/specialized state rather than a mode most
+    " users intentionally enter directly.
+    elseif l:mode ==# 'Vs'
+        return 'VL-SELECT'
+
+    " VB-SELECT
+    "
+    " Blockwise Visual mode entered from Select mode.
+    "
+    " This is primarily an internal/specialized state rather than a mode most
+    " users intentionally enter directly.
+    elseif l:mode ==# "\<C-v>s"
+        return 'VB-SELECT'
+
+
+    " -------------------------------------------------------------------------
+    " Select modes
+    " -------------------------------------------------------------------------
+    "
+    " Select mode resembles selection in conventional GUI editors: typing
+    " printable text replaces the selected text.
+    "
+
+    " SELECT
+    "
+    " Characterwise Select mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     gh
+    "
+    " then move the cursor to extend the selection.
+    elseif l:mode ==# 's'
+        return 'SELECT'
+
+    " S-LINE
+    "
+    " Linewise Select mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     gH
+    "
+    " Entire lines are selected.
+    elseif l:mode ==# 'S'
+        return 'S-LINE'
+
+    " S-BLOCK
+    "
+    " Blockwise Select mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     g<C-h>
+    "
+    " This creates a blockwise Select-mode selection.
+    elseif l:mode ==# "\<C-s>"
+        return 'S-BLOCK'
+
+
+    " -------------------------------------------------------------------------
+    " Insert modes
+    " -------------------------------------------------------------------------
+
+    " INSERT
+    "
+    " Ordinary Insert mode.
+    "
+    " Common ways to enter include:
+    "
+    "     i       insert before cursor
+    "     I       insert at first non-blank character
+    "     a       append after cursor
+    "     A       append at end of line
+    "     o       open line below
+    "     O       open line above
+    elseif l:mode ==# 'i'
+        return 'INSERT'
+
+    " I-COMPLETE
+    "
+    " Insert mode while Insert-mode completion is active.
+    "
+    " For example, while in Insert mode:
+    "
+    "     <C-n>
+    "
+    " or:
+    "
+    "     <C-p>
+    "
+    " starts keyword completion.
+    "
+    " Vim may report this state while a completion operation is active.
+    elseif l:mode ==# 'ic'
+        return 'I-COMPLETE'
+
+    " I-CTRL-X
+    "
+    " Insert mode's CTRL-X completion submode.
+    "
+    " Enter Insert mode and press:
+    "
+    "     <C-x>
+    "
+    " Vim now waits for another key selecting the type of completion.
+    "
+    " Examples:
+    "
+    "     <C-x><C-f>     file-name completion
+    "     <C-x><C-l>     whole-line completion
+    "     <C-x><C-o>     omni completion
+    "     <C-x><C-k>     dictionary completion
+    "
+    " The bare <C-x> state is normally very brief.
+    elseif l:mode ==# 'ix'
+        return 'I-CTRL-X'
+
+
+    " -------------------------------------------------------------------------
+    " Replace modes
+    " -------------------------------------------------------------------------
+
+    " REPLACE
+    "
+    " Ordinary Replace mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     R
+    "
+    " Typed characters replace existing characters.
     elseif l:mode ==# 'R'
         return 'REPLACE'
+
+    " R-COMPLETE
+    "
+    " Replace mode while completion is active.
+    "
+    " Enter Replace mode:
+    "
+    "     R
+    "
+    " and invoke an Insert-style completion command such as:
+    "
+    "     <C-n>
+    "
+    " This is generally a transient state.
+    elseif l:mode ==# 'Rc'
+        return 'R-COMPLETE'
+
+    " R-CTRL-X
+    "
+    " CTRL-X completion submode entered from Replace mode.
+    "
+    " Enter:
+    "
+    "     R
+    "     <C-x>
+    "
+    " then choose a CTRL-X completion command such as <C-f> or <C-l>.
+    elseif l:mode ==# 'Rx'
+        return 'R-CTRL-X'
+
+    " V-REPLACE
+    "
+    " Virtual Replace mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     gR
+    "
+    " Unlike ordinary Replace mode, replacement takes the screen width of
+    " characters (including tabs) into account.
+    elseif l:mode ==# 'Rv'
+        return 'V-REPLACE'
+
+    " VR-COMPLETE
+    "
+    " Virtual Replace mode while completion is active.
+    "
+    " Enter:
+    "
+    "     gR
+    "
+    " and invoke a completion command such as:
+    "
+    "     <C-n>
+    "
+    " This is normally a transient state.
+    elseif l:mode ==# 'Rvc'
+        return 'VR-COMPLETE'
+
+    " VR-CTRL-X
+    "
+    " CTRL-X completion submode entered from Virtual Replace mode.
+    "
+    " Enter:
+    "
+    "     gR
+    "     <C-x>
+    "
+    " then choose one of the CTRL-X completion commands.
+    elseif l:mode ==# 'Rvx'
+        return 'VR-CTRL-X'
+
+
+    " -------------------------------------------------------------------------
+    " Command-line modes
+    " -------------------------------------------------------------------------
+
+    " COMMAND
+    "
+    " Command-line mode.
+    "
+    " Common ways to enter from Normal mode:
+    "
+    "     :       Ex command
+    "     /       forward search
+    "     ?       backward search
+    "
+    " Examples:
+    "
+    "     :write
+    "     /hello
     elseif l:mode ==# 'c'
         return 'COMMAND'
+
+    " EX
+    "
+    " Vim's Ex mode.
+    "
+    " Enter from Normal mode with:
+    "
+    "     Q
+    "
+    " if `Q` has its traditional Ex-mode mapping.
+    "
+    " You can also enter Ex mode with:
+    "
+    "     gQ
+    "
+    " depending on the exact Ex behavior desired.
+    "
+    " Leave Ex mode with:
+    "
+    "     :visual
+    elseif l:mode ==# 'cv'
+        return 'EX'
+
+    " EX-NORMAL
+    "
+    " Normal-mode-like state associated with Ex mode.
+    "
+    " This is a specialized/internal Ex state and is not generally something
+    " entered directly for normal editing.
+    elseif l:mode ==# 'ce'
+        return 'EX-NORMAL'
+
+
+    " -------------------------------------------------------------------------
+    " Prompt and message modes
+    " -------------------------------------------------------------------------
+
+    " HIT-ENTER
+    "
+    " Vim is waiting at a prompt such as:
+    "
+    "     Press ENTER or type command to continue
+    "
+    " A simple way to trigger it is to produce enough command output that Vim
+    " must pause before returning to the editor.
+    "
+    " Press:
+    "
+    "     <Enter>
+    "
+    " to continue.
+    elseif l:mode ==# 'r'
+        return 'HIT-ENTER'
+
+    " MORE
+    "
+    " Vim's `-- More --` prompt.
+    "
+    " Trigger it by displaying output longer than the available screen.
+    "
+    " Common keys:
+    "
+    "     <Space>     next page
+    "     d           half page
+    "     q           quit the prompt
+    "
+    " This is a transient interface state.
+    elseif l:mode ==# 'rm'
+        return 'MORE'
+
+    " CONFIRM
+    "
+    " Vim is waiting for confirmation.
+    "
+    " Your configuration has:
+    "
+    "     set confirm
+    "
+    " so operations involving unsaved buffers can produce confirmation
+    " prompts.
+    "
+    " Other commands can also explicitly request confirmation.
+    elseif l:mode ==# 'r?'
+        return 'CONFIRM'
+
+
+    " -------------------------------------------------------------------------
+    " External-command mode
+    " -------------------------------------------------------------------------
+
+    " SHELL
+    "
+    " Vim is executing or interacting with an external command.
+    "
+    " For example:
+    "
+    "     :!ls
+    "
+    " or:
+    "
+    "     :shell
+    "
+    " Whether this state is visible in the status line depends on when Vim is
+    " able to redraw the screen.
+    elseif l:mode ==# '!'
+        return 'SHELL'
+
+
+    " -------------------------------------------------------------------------
+    " Terminal mode
+    " -------------------------------------------------------------------------
+
+    " TERMINAL
+    "
+    " Terminal-Job mode: keyboard input is being sent to a terminal job.
+    "
+    " Your configuration can open/toggle a terminal with:
+    "
+    "     <Leader>tt
+    "
+    " which, with your leader setting, means:
+    "
+    "     Space t t
+    "
+    " Once the terminal has focus, Vim can report Terminal-Job mode as `t`.
     elseif l:mode ==# 't'
         return 'TERMINAL'
+
     endif
 
+
+    " -------------------------------------------------------------------------
+    " Unknown/future mode
+    " -------------------------------------------------------------------------
+    "
+    " If this Vim version returns a mode code that is not listed above, display
+    " the raw mode code in uppercase rather than hiding it.
+    "
+    " This is useful both for compatibility with different Vim versions and
+    " for discovering additional mode() values.
+    "
     return toupper(l:mode)
 endfunction
 
