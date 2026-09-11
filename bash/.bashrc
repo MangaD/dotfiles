@@ -224,7 +224,7 @@ fi
 # Standard input is piped directly into tmux or `base64` rather than stored in a
 # shell variable. This preserves the input exactly, including trailing newlines.
 copy() {
-    if [[ -n "$TMUX" ]]; then
+    if [[ -n "$TMUX" ]] && command -v tmux >/dev/null 2>&1; then
         if (($#)); then
             printf '%s' "$*" | tmux load-buffer -w -
         else
