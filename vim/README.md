@@ -60,6 +60,7 @@ The configuration provides:
 - A transparent default colorscheme with interactive colorscheme browsing
 - Custom line-number and whitespace highlighting
 - Persistent undo when supported by Vim
+- Native Vim tag navigation using Universal Ctags-generated tag files
 - Insert-mode completion configuration
 - C and C++ indentation using Vim's built-in C indentation rules
 - Optional machine-specific overrides through `~/.vimrc.local`
@@ -425,6 +426,124 @@ menuone,noinsert,noselect
 
 This causes Vim to show the completion menu even when only one candidate is available, while avoiding automatic insertion or automatic selection of a candidate.
 
+## Tags
+
+The configuration uses Vim's built-in tag support with tag databases generated externally by a program such as [Universal Ctags](https://ctags.io/). No Vim plugin is required.
+
+Generate a tags file recursively from the root of a project:
+
+```bash
+ctags -R
+```
+
+Universal Ctags writes the resulting index to `tags` in the project root. Tag generation is deliberately manual rather than being triggered on every file write, avoiding potentially expensive recursive indexing while editing large projects.
+
+Vim is configured to search for `tags` beginning with the directory of the current file and continuing upward through its parent directories. A project can therefore have a single tags database at its root:
+
+```text
+project/
+├── tags
+├── include/
+│   └── example.h
+└── src/
+    └── example.c
+```
+
+When editing `src/example.c`, Vim can find the `tags` file at the project root automatically.
+
+### Tag Navigation
+
+Common built-in Vim tag commands include:
+
+```text
+Ctrl-]              Jump to the tag under the cursor
+Ctrl-t              Return through the tag stack
+g Ctrl-]             Jump directly if unique; select when multiple tags match
+:tag NAME            Jump to a named tag
+:tselect NAME        List matching tags and select one
+:tnext               Next matching tag
+:tprevious           Previous matching tag
+:tags                Display the tag stack
+```
+
+Tag jumps are recorded in Vim's tag stack. For example, following definitions from `main()` to `parse()` and then to `read_token()` with `Ctrl-]` allows successive presses of `Ctrl-t` to return first to `parse()` and then to `main()`.
+
+Definitions can also be opened without replacing the current window:
+
+```text
+Ctrl-w ]             Open the tag under the cursor in a horizontal split
+Ctrl-w }             Show the tag under the cursor in the preview window
+:ptag NAME           Show a named tag in the preview window
+:pclose              Close the preview window
+```
+
+Tag commands also accept search patterns. For example:
+
+```vim
+:tag /^get
+:tag /Final$
+:tag /norm
+```
+
+When entering a tag command manually, `Ctrl-r Ctrl-w` inserts the word under the cursor into the command line.
+
+### Starting Vim at a Tag
+
+Vim can be started directly at a tag:
+
+```bash
+vim -t main
+```
+
+Patterns can also be supplied:
+
+```bash
+vim -t '/^parse'
+```
+
+This searches the available tags database and starts Vim at a matching definition.
+
+### Refreshing Tags
+
+The tags database is generated data and becomes stale as the source tree changes. Regenerate it manually from the project root when necessary:
+
+```bash
+ctags -R
+```
+
+Automatic regeneration on every write is intentionally avoided because recursively indexing a large project can be expensive.
+
+### Ctags Configuration
+
+Universal Ctags supports option files for reusable user-wide or project-specific configuration. These can be used to exclude directories such as build outputs or dependencies, select languages, control which kinds of symbols are indexed, and customize other aspects of tag generation.
+
+Common configuration locations include directories such as:
+
+```text
+~/.config/ctags/
+~/.ctags.d/
+.ctags.d/
+ctags.d/
+```
+
+For example, an option file could contain:
+
+```text
+--exclude=.git
+--exclude=build
+--exclude=node_modules
+```
+
+Useful Universal Ctags inspection commands include:
+
+```bash
+ctags --list-languages
+ctags --list-kinds-full
+ctags --list-excludes
+```
+
+See the Universal Ctags documentation for the complete set of generation options and configuration-file locations. Vim's built-in documentation is available with `:help tags`, `:help tag-commands`, and `:help tag-stack`.
+
 ## C and C++
 
 For C and C++ files, Vim's built-in C indentation rules are enabled with `cindent`.
@@ -498,6 +617,11 @@ should not be committed to the repository.
 | `Space t h` | Normal | Move the current tab page left |
 | `Space t l` | Normal | Move the current tab page right |
 | `Space y` | Visual | Copy selection through OSC 52 |
+| `Ctrl-]` | Normal | Jump to the tag under the cursor |
+| `Ctrl-t` | Normal | Return through the tag stack |
+| `g Ctrl-]` | Normal | Jump to a unique tag or select from multiple matches |
+| `Ctrl-w ]` | Normal | Open the tag under the cursor in a horizontal split |
+| `Ctrl-w }` | Normal | Show the tag under the cursor in the preview window |
 | `F7` | Normal | Previous colorscheme |
 | `F8` | Normal | Next colorscheme |
 
@@ -505,6 +629,8 @@ should not be committed to the repository.
 
 The Vim configuration is intended to remain small, understandable, and useful without turning Vim into a plugin-heavy IDE.
 
-Settings and mappings should be added when they solve an actual problem or improve an established workflow. Features that require substantial IDE-like functionality can remain part of the separate Neovim configuration.
+Settings and mappings should be added when they solve an actual problem or improve an established workflow. Where Vim already provides suitable built-in functionality, the configuration prefers enabling or integrating that functionality rather than introducing plugins. Tag navigation is an example: Universal Ctags provides the external source index while Vim's native tag commands provide navigation without requiring an IDE-style plugin.
+
+Features that require substantial IDE-like functionality can remain part of the separate Neovim configuration.
 
 Historical settings that may still be useful for reference can remain commented in `.vimrc` rather than being enabled without a clear need.
