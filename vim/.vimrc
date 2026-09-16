@@ -114,6 +114,25 @@ set autoread
 " explicitly makes the intended behavior portable and predictable.
 set backspace=indent,eol,start
 
+" Allow Left and Right to move across line boundaries.
+"
+" Normally, Vim stops the cursor at the beginning or end of a line when using
+" the Left and Right arrow keys. Enable conventional editor-style behavior so
+" that the cursor can continue onto the adjacent line.
+"
+" whichwrap flags:
+"
+"     <    Left in Normal and Visual modes
+"     >    Right in Normal and Visual modes
+"     [    Left in Insert mode
+"     ]    Right in Insert mode
+"
+" This means:
+"
+"     Left     At the beginning of a line, move to the end of the previous line
+"     Right    At the end of a line, move to the beginning of the next line
+set whichwrap+=<,>,[,]
+
 " Enable mouse support in all modes.
 set mouse=a
 
@@ -181,6 +200,36 @@ set showtabline=2
 " =============================================================================
 " Mappings
 " =============================================================================
+
+" -----------------------------------------------------------------------------
+" Insert-mode navigation
+" -----------------------------------------------------------------------------
+
+" Provide conventional word-based cursor movement while remaining in Insert
+" mode:
+"
+"     Ctrl+Left         Move to the beginning of the previous word
+"     Ctrl+Right        Move to the end of the current or next word
+"     Ctrl+Backspace    Delete the previous word
+"
+" <C-o> temporarily executes one Normal-mode command and then automatically
+" returns to Insert mode.
+"
+" The Normal-mode motions used here are:
+"
+"     b    Move backward to the beginning of a word
+"     e    Move forward to the end of a word
+"
+" <C-w> is Vim's native Insert-mode command for deleting the word before the
+" cursor.
+"
+" Note:
+" Some terminal emulators may not send distinct key sequences for Ctrl+Arrow
+" or Ctrl+Backspace. These mappings therefore depend on the terminal making
+" those key combinations available to Vim.
+inoremap <C-Left>  <C-o>b
+inoremap <C-Right> <C-o>e
+inoremap <C-BS>    <C-w>
 
 " -----------------------------------------------------------------------------
 " File explorer

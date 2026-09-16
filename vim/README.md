@@ -41,6 +41,8 @@ The configuration provides:
 - Confirmation before abandoning unsaved changes
 - Automatic detection of files modified outside Vim
 - Predictable Insert-mode Backspace behavior
+- Arrow-key movement across line boundaries
+- Conventional Insert-mode word navigation and deletion shortcuts
 - Mouse support
 - System clipboard integration when supported by Vim
 - OSC 52 clipboard support for remote editing
@@ -85,6 +87,20 @@ Modified buffers may remain hidden, allowing another buffer to be displayed with
 `autoread` allows Vim to notice files changed outside the editor when Vim performs an external-change check.
 
 Backspace is configured to work across indentation, line boundaries, and the point at which Insert mode began.
+
+The Left and Right arrow keys are allowed to cross line boundaries in Normal, Visual, and Insert modes. Pressing Left at the beginning of a line therefore moves to the end of the previous line, while pressing Right at the end of a line moves to the beginning of the next line.
+
+Insert mode also provides conventional word-based navigation and deletion shortcuts:
+
+```text
+Ctrl-Left            Move to the beginning of the previous word
+Ctrl-Right           Move to the end of the current or next word
+Ctrl-Backspace       Delete the previous word
+````
+
+`Ctrl-Left` and `Ctrl-Right` execute Vim's corresponding Normal-mode word motions temporarily and then return automatically to Insert mode. `Ctrl-Backspace` uses Vim's native Insert-mode word-deletion command.
+
+Some terminal emulators may not send distinct key sequences for `Ctrl-Left`, `Ctrl-Right`, or `Ctrl-Backspace`. These mappings therefore depend on the terminal making those key combinations available to Vim.
 
 Mouse support is enabled in all modes.
 
@@ -464,6 +480,9 @@ should not be committed to the repository.
 | `Ctrl-s` | Normal | Write the current buffer |
 | `Ctrl-s` | Insert | Write without permanently leaving Insert mode |
 | `Ctrl-s` | Visual | Write and restore the selection |
+| `Ctrl-Left` | Insert | Move to the beginning of the previous word |
+| `Ctrl-Right` | Insert | Move to the end of the current or next word |
+| `Ctrl-Backspace` | Insert | Delete the previous word |
 | `Alt-j` | Normal / Visual | Move line or selection down |
 | `Alt-k` | Normal / Visual | Move line or selection up |
 | `Alt-Down` | Normal / Visual | Move line or selection down |
