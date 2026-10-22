@@ -6,7 +6,8 @@ lightweight.
 
 The interface takes some inspiration from VS Code, with a file explorer, buffer
 tabs, integrated terminal, status line, icons, multiple color schemes,
-Tree-sitter syntax highlighting, and Language Server Protocol (LSP) support.
+Tree-sitter syntax highlighting, Language Server Protocol (LSP) support,
+Telescope fuzzy finding, and Git change indicators.
 
 The configuration is written in Lua and uses
 [`lazy.nvim`](https://github.com/folke/lazy.nvim) for plugin management.
@@ -26,6 +27,8 @@ The configuration requires:
 * `tree-sitter-cli` 0.26.1 or later
 * `clangd` for C and C++ LSP support
 * `basedpyright` for Python LSP support
+* `ripgrep` (`rg`) for Telescope project-wide text search
+* `fd` or `fdfind` (recommended) for fast Telescope file finding
 
 Language servers are external programs and are not installed by Neovim or
 `nvim-lspconfig`. They must be installed separately and available in `PATH`.
@@ -35,10 +38,10 @@ Language servers are external programs and are not installed by Neovim or
 
 Language Server Protocol (LSP) support is currently configured for:
 
-| Language | Server |
-| -------- | ------ |
-| C/C++ | `clangd` |
-| Python | `basedpyright` |
+\| Language | Server |
+\| -------- | ------ |
+\| C/C++ | `clangd` |
+\| Python | `basedpyright` |
 
 Language servers are installed separately from Neovim plugins.
 
@@ -102,6 +105,30 @@ command -v basedpyright-langserver
 
 The language-server executable must be visible in the environment from which
 Neovim is started.
+
+
+### Telescope search tools
+
+Telescope uses external command-line tools for some search features. On Debian
+or Raspberry Pi OS, install them with:
+
+```bash
+sudo apt install ripgrep fd-find
+```
+
+Verify the executables:
+
+```bash
+rg --version
+fdfind --version
+```
+
+Debian's `fd-find` package normally provides `fdfind`, whereas other systems
+may provide `fd`. The configuration checks for both names and uses whichever
+is available. If neither is installed, Telescope falls back to its normal file
+finder. If `rg` is missing, project-wide text searching will not work.
+
+Missing tools trigger warnings rather than preventing Neovim from starting.
 
 
 ### Nerd Font
@@ -181,8 +208,8 @@ The configuration provides:
 Invisible whitespace is displayed using characters such as:
 
 ```text
-·    spaces
-→    tabs
+·    spaces
+→    tabs
 ```
 
 
@@ -191,7 +218,7 @@ Invisible whitespace is displayed using characters such as:
 The current file can be saved using:
 
 ```text
-Ctrl+S              Save current file
+Ctrl+S              Save current file
 ```
 
 The shortcut works in Normal, Insert, and Visual modes.
@@ -200,11 +227,11 @@ When used from Insert mode, the file is saved without permanently leaving Insert
 mode. When used from Visual mode, the current selection remains active after the
 save.
 
-> **Terminal note:** Some terminals use `Ctrl+S` for XON/XOFF software flow
-> control. If `Ctrl+S` freezes terminal output instead of saving the file, check
-> the terminal settings with `stty -a`. If `ixon` is enabled, it can be disabled
-> for the current terminal with `stty -ixon`. `Ctrl+Q` traditionally resumes
-> output when software flow control is enabled.
+\> ****Terminal note:**** Some terminals use `Ctrl+S` for XON/XOFF software flow
+\> control. If `Ctrl+S` freezes terminal output instead of saving the file, check
+\> the terminal settings with `stty -a`. If `ixon` is enabled, it can be disabled
+\> for the current terminal with `stty -ixon`. `Ctrl+Q` traditionally resumes
+\> output when software flow control is enabled.
 
 
 ### Indentation detection
@@ -212,10 +239,10 @@ save.
 Default indentation is:
 
 ```text
-Tab width:        4
-Shift width:      4
-Soft tab width:   4
-Default style:    tabs
+Tab width:        4
+Shift width:      4
+Soft tab width:   4
+Default style:    tabs
 ```
 
 These values are fallbacks.
@@ -233,13 +260,65 @@ different projects to use different indentation conventions.
 Lines can be moved without manually cutting and pasting them.
 
 ```text
-Alt+j              Move line down
-Alt+k              Move line up
-Alt+Down           Move line down
-Alt+Up             Move line up
+Alt+j              Move line down
+Alt+k              Move line up
+Alt+Down           Move line down
+Alt+Up             Move line up
 ```
 
 The same shortcuts work on Visual selections and keep the moved lines selected.
+
+
+## Telescope
+
+[`telescope.nvim`](https://github.com/nvim-telescope/telescope.nvim) provides
+interactive fuzzy finding and searchable lists for files, project text, open
+buffers, Neovim help, diagnostics, and LSP information. It uses
+[`plenary.nvim`](https://github.com/nvim-lua/plenary.nvim) and the existing
+`nvim-web-devicons` plugin.
+
+### Keybindings
+
+All Telescope mappings start with `Space+f`:
+
+```text
+Space+f+f           Find files
+Space+f+g           Search project text (live grep)
+Space+f+w           Search the word under the cursor
+Space+f+b           Search open buffers
+Space+f+h           Search Neovim help
+Space+f+d           Browse diagnostics
+Space+f+s           Search document symbols via LSP
+Space+f+r           Search references via LSP
+```
+
+Telescope pickers open in Insert mode, ready for typing. Use `Ctrl+n` and
+`Ctrl+p` to move through results, `Enter` to select, and `Esc` to close.
+
+File and text searches operate relative to Neovim's current working directory.
+Check it with `:pwd`; for project-wide searches, start Neovim in the project's
+root directory or change directory with `:cd`.
+
+### File discovery and text search
+
+When `fd` or `fdfind` is available, the file picker explicitly searches for
+files, includes hidden files such as `.gitignore`, and excludes the `.git`
+directory. The command also follows `fd`'s usual ignore rules, so ignored
+files are generally omitted. Without `fd` or `fdfind`, Telescope uses its
+normal fallback.
+
+`Space+f+g` and `Space+f+w` use `ripgrep` (`rg`) for text searches. `rg` respects
+ignore rules by default.
+
+### LSP integration
+
+`Space+f+s` and `Space+f+r` use the language server attached to the current
+buffer. For example, `clangd` provides C/C++ symbols and references, while
+`basedpyright` provides Python symbols and references. These pickers require a
+working LSP client for the relevant file.
+
+`Space+f+d` offers a searchable view of diagnostics, complementing the direct
+diagnostic navigation mappings described below.
 
 
 ## File Explorer
@@ -248,7 +327,7 @@ The same shortcuts work on Visual selections and keep the moved lines selected.
 explorer on the left side of the editor.
 
 ```text
-Ctrl+n              Toggle file explorer
+Ctrl+n              Toggle file explorer
 ```
 
 The explorer displays file, directory, and Git-status icons using
@@ -262,14 +341,14 @@ Its default width is 30 columns.
 [`bufferline.nvim`](https://github.com/akinsho/bufferline.nvim) displays open
 buffers across the top of the editor in a tab-like interface.
 
-These are Neovim **buffers**, not Vim tab pages.
+These are Neovim ****buffers****, not Vim tab pages.
 
 ```text
-Alt+Left            Previous buffer
-Alt+Right           Next buffer
-Alt+Shift+Left      Move buffer left
-Alt+Shift+Right     Move buffer right
-Alt+w               Close current buffer
+Alt+Left            Previous buffer
+Alt+Right           Next buffer
+Alt+Shift+Left      Move buffer left
+Alt+Shift+Right     Move buffer right
+Alt+w               Close current buffer
 ```
 
 Terminal buffers are deliberately excluded from Bufferline because the terminal
@@ -293,8 +372,8 @@ Neovim includes a toggleable terminal in a horizontal split at the bottom of the
 editor.
 
 ```text
-Ctrl+\              Show/hide terminal
-Esc                 Leave Terminal mode
+Ctrl+\              Show/hide terminal
+Esc                 Leave Terminal mode
 ```
 
 The terminal split is 12 lines high.
@@ -389,8 +468,8 @@ kanagawa-dragon
 Themes can be changed at runtime:
 
 ```text
-F7                  Previous color scheme
-F8                  Next color scheme
+F7                  Previous color scheme
+F8                  Next color scheme
 ```
 
 The selected color scheme name is displayed as a notification.
@@ -497,10 +576,10 @@ client together with `nvim-lspconfig`.
 
 The configuration currently enables:
 
-| Language | Server |
-| -------- | ------ |
-| C/C++ | `clangd` |
-| Python | `basedpyright` |
+\| Language | Server |
+\| -------- | ------ |
+\| C/C++ | `clangd` |
+\| Python | `basedpyright` |
 
 The language servers provide features such as:
 
@@ -519,11 +598,11 @@ The following mappings are created when an LSP server attaches to the current
 buffer:
 
 ```text
-gd                  Go to definition
-gr                  Find references
-K                   Show hover documentation
-Space+r+n           Rename symbol
-Space+c+a           Show code actions
+gd                  Go to definition
+gr                  Find references
+K                   Show hover documentation
+Space+r+n           Rename symbol
+Space+c+a           Show code actions
 ```
 
 Because these mappings are buffer-local, they are only active in buffers where
@@ -542,8 +621,8 @@ plugin.
 The current language servers provide completion for:
 
 ```text
-C/C++       clangd
-Python      basedpyright
+C/C++       clangd
+Python      basedpyright
 ```
 
 
@@ -555,9 +634,9 @@ summarized in the status line and Bufferline.
 Useful diagnostic mappings are:
 
 ```text
-Space+d             Show diagnostics for the current line
-[d                  Previous diagnostic
-]d                  Next diagnostic
+Space+d             Show diagnostics for the current line
+[d                  Previous diagnostic
+]d                  Next diagnostic
 ```
 
 `Space+d` opens the diagnostic message for the current line in a floating
@@ -586,26 +665,87 @@ For example, a Python buffer with the configured server running should include
 a client named `basedpyright`.
 
 
+## Git Integration
+
+[`gitsigns.nvim`](https://github.com/lewis6991/gitsigns.nvim) displays Git
+changes in the sign column beside the line numbers and provides actions for
+inspecting and managing individual *hunks* (contiguous groups of changed
+lines). Git itself must be installed, and the file must belong to a Git
+repository for repository-specific features to work.
+
+The configured gutter indicators are:
+
+```text
++                   Added lines
+~                   Changed lines
+_                   Deleted lines
+‾                   Deletion at the top of the file
+┆                   Untracked lines
+```
+
+Gitsigns also tracks changes before a file is saved. The configuration enables
+attachment to untracked files and disables inline blame by default.
+
+### Git keybindings
+
+The mappings are buffer-local and are created when Gitsigns attaches:
+
+```text
+]h                  Next Git hunk
+[h                  Previous Git hunk
+Space+g+p           Preview current hunk
+Space+g+d           Diff current file against the Git index
+Space+g+s           Stage current hunk
+Space+g+u           Undo staging of a hunk staged through Gitsigns
+Space+g+r           Reset current hunk (discard unstaged changes)
+Space+g+b           Show blame for the current line
+Space+g+B           Toggle inline blame for the current line
+```
+
+### Staging, unstaging, and resetting
+
+**Stage** (`Space+g+s`) adds only the current hunk to Git's index, allowing
+part of a file to be staged without staging every change in the file.
+
+**Undo stage** (`Space+g+u`) reverses a hunk staging operation performed by
+Gitsigns in the current session. It preserves the corresponding working-tree
+changes; it is not a general-purpose replacement for `git restore --staged`.
+
+**Reset** (`Space+g+r`) discards unstaged changes in the current hunk and
+restores its indexed content. **This can permanently lose work and does not
+prompt for confirmation.** Use it carefully.
+
+### Inspecting changes and blame
+
+`Space+g+p` previews the current hunk without modifying the file.
+`Space+g+d` opens a diff against Git's index. `Space+g+b` shows information
+about the commit responsible for the current line, and `Space+g+B` toggles
+inline blame text without changing the file.
+
+The existing Lualine Git branch and diff components and nvim-tree Git icons
+complement these features.
+
+
 ## Plugins
 
 The configuration currently uses:
 
-| Plugin                             | Purpose                         |
-| ---------------------------------- | ------------------------------- |
-| `folke/lazy.nvim`                  | Plugin manager                  |
-| `Mofiqul/vscode.nvim`              | VS Code color scheme            |
-| `catppuccin/nvim`                  | Catppuccin color schemes        |
-| `folke/tokyonight.nvim`            | Tokyo Night color schemes       |
-| `rebelot/kanagawa.nvim`            | Kanagawa color schemes          |
-| `ellisonleao/gruvbox.nvim`         | Gruvbox color scheme            |
-| `nvim-tree/nvim-tree.lua`          | File explorer                   |
-| `nvim-tree/nvim-web-devicons`      | Nerd Font icons                 |
-| `nvim-lualine/lualine.nvim`        | Status line                     |
-| `akinsho/bufferline.nvim`          | Buffer tabs                     |
-| `ojroques/nvim-bufdel`             | Safe buffer deletion            |
-| `NMAC427/guess-indent.nvim`         | Automatic indentation detection |
-| `nvim-treesitter/nvim-treesitter`  | Tree-sitter parser management   |
-| `neovim/nvim-lspconfig`             | LSP server configuration        |
+\| Plugin                             | Purpose                         |
+\| ---------------------------------- | ------------------------------- |
+\| `folke/lazy.nvim`                  | Plugin manager                  |
+\| `Mofiqul/vscode.nvim`              | VS Code color scheme            |
+\| `catppuccin/nvim`                  | Catppuccin color schemes        |
+\| `folke/tokyonight.nvim`            | Tokyo Night color schemes       |
+\| `rebelot/kanagawa.nvim`            | Kanagawa color schemes          |
+\| `ellisonleao/gruvbox.nvim`         | Gruvbox color scheme            |
+\| `nvim-tree/nvim-tree.lua`          | File explorer                   |
+\| `nvim-tree/nvim-web-devicons`      | Nerd Font icons                 |
+\| `nvim-lualine/lualine.nvim`        | Status line                     |
+\| `akinsho/bufferline.nvim`          | Buffer tabs                     |
+\| `ojroques/nvim-bufdel`             | Safe buffer deletion            |
+\| `NMAC427/guess-indent.nvim`         | Automatic indentation detection |
+\| `nvim-treesitter/nvim-treesitter`  | Tree-sitter parser management   |
+\| `neovim/nvim-lspconfig`             | LSP server configuration        |
 
 
 ## Plugin Management
@@ -699,9 +839,9 @@ pipx upgrade basedpyright
 These are therefore three separate layers:
 
 ```text
-Neovim plugins          lazy.nvim
-Tree-sitter parsers     nvim-treesitter
-Language servers        APT, pipx, or another external package manager
+Neovim plugins          lazy.nvim
+Tree-sitter parsers     nvim-treesitter
+Language servers        APT, pipx, or another external package manager
 ```
 
 
@@ -734,13 +874,11 @@ LSP configuration and attached language servers can be checked with:
 The configuration is intentionally being expanded incrementally rather than
 installing a large preconfigured Neovim distribution.
 
-Language Server Protocol support and built-in LSP completion are now configured
-for C, C++, and Python.
+Tree-sitter highlighting, LSP support and built-in completion for C/C++ and
+Python, Telescope fuzzy finding, and Git hunk management are configured.
 
 Potential additions include:
 
-* Telescope fuzzy finding and project search
-* Git integration
 * Automatic formatting
 * Linting
 * Comment toggling
@@ -749,6 +887,5 @@ Potential additions include:
 * Session/project persistence
 * Keybinding discovery
 
-The next planned addition is **Telescope**, providing fuzzy file finding,
-project-wide searching, buffer selection, and searchable access to LSP
-information such as definitions, references, symbols, and diagnostics.
+The next planned addition is **automatic formatting**, with language-specific
+formatters added incrementally and kept separate from LSP diagnostics.

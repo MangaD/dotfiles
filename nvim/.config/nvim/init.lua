@@ -408,6 +408,292 @@ require("lazy").setup({
     },
 
 
+    -- -----------------------------------------------------------------------------
+    -- Telescope
+    -- -----------------------------------------------------------------------------
+
+    {
+        "nvim-telescope/telescope.nvim",
+
+        -- Telescope uses plenary.nvim for shared Lua utilities.
+        -- nvim-web-devicons provides filetype icons when a Nerd Font is available.
+        dependencies = {
+            "nvim-lua/plenary.nvim",
+            "nvim-tree/nvim-web-devicons",
+        },
+
+        config = function()
+            local telescope = require("telescope")
+
+            -- ---------------------------------------------------------------------
+            -- External dependencies
+            -- ---------------------------------------------------------------------
+
+            -- Telescope can use external programs to find files and search text.
+            --
+            -- ripgrep:
+            --     Provides `rg`, used by live_grep and grep_string.
+            --
+            -- fd-find:
+            --     Provides fast file discovery.
+            --
+            --     Most systems use the executable name `fd`, but Debian and
+            --     Raspberry Pi OS normally install it as `fdfind`.
+            --
+            -- Missing tools should produce a warning rather than preventing
+            -- Neovim or Telescope from starting.
+
+            local has_rg = vim.fn.executable("rg") == 1
+
+            local fd_command = nil
+
+            if vim.fn.executable("fd") == 1 then
+                fd_command = "fd"
+            elseif vim.fn.executable("fdfind") == 1 then
+                fd_command = "fdfind"
+            end
+
+
+            -- Warn if ripgrep is unavailable.
+            --
+            -- File finding and buffer selection can still work, but project-wide
+            -- text searching requires ripgrep.
+            if not has_rg then
+                vim.schedule(function()
+                    vim.notify(
+                        "Telescope: ripgrep (rg) is not installed. " ..
+                        "Install it with: sudo apt install ripgrep",
+                        vim.log.levels.WARN
+                    )
+                end)
+            end
+
+
+            -- Warn if neither fd nor fdfind is available.
+            --
+            -- Telescope can still find files using its fallback mechanisms,
+            -- although fd generally provides faster file discovery.
+            if not fd_command then
+                vim.schedule(function()
+                    vim.notify(
+                        "Telescope: fd/fdfind is not installed. " ..
+                        "Install it with: sudo apt install fd-find",
+                        vim.log.levels.WARN
+                    )
+                end)
+            end
+
+
+            -- ---------------------------------------------------------------------
+            -- Configuration
+            -- ---------------------------------------------------------------------
+
+            local opts = {
+                defaults = {
+                    -- Start pickers in Insert mode so searches can be typed
+                    -- immediately.
+                    initial_mode = "insert",
+                },
+
+                pickers = {},
+            }
+
+
+            -- Explicitly configure the file-finding executable when available.
+            --
+            -- This is particularly useful on Debian, where the executable is
+            -- named `fdfind` rather than `fd`.
+            --
+            -- The arguments mean:
+            --
+            --     --type f        Only return files
+            --     --hidden        Include hidden files
+            --     --exclude .git  Do not search inside Git's internal directory
+            --
+            -- If fd/fdfind is unavailable, leave find_command unset and allow
+            -- Telescope to choose its normal fallback.
+            if fd_command then
+                opts.pickers.find_files = {
+                    find_command = {
+                        fd_command,
+                        "--type",
+                        "f",
+                        "--hidden",
+                        "--exclude",
+                        ".git",
+                    },
+                }
+            end
+
+            telescope.setup(opts)
+        end,
+    },
+
+
+    -- -------------------------------------------------------------------------
+    -- Git change indicators
+    -- -------------------------------------------------------------------------
+
+    {
+        "lewis6991/gitsigns.nvim",
+
+        config = function()
+            local gitsigns = require("gitsigns")
+
+            gitsigns.setup({
+                -- Display Git changes in the sign column beside line numbers.
+                --
+                -- Added lines:    +
+                -- Changed lines:  ~
+                -- Deleted lines:  _
+                signs = {
+                    add          = { text = "+" },
+                    change       = { text = "~" },
+                    delete       = { text = "_" },
+                    topdelete    = { text = "‾" },
+                    changedelete = { text = "~" },
+                    untracked    = { text = "┆" },
+                },
+
+                -- Display signs for untracked files as well.
+                attach_to_untracked = true,
+
+                -- Do not display inline Git blame information on every line.
+                -- This can be enabled later if we decide it is useful.
+                current_line_blame = false,
+
+                -- Show changes even when the file has not yet been saved.
+                update_debounce = 100,
+
+                -- Configure buffer-local mappings only when Gitsigns attaches
+                -- to a file tracked by Git.
+                on_attach = function(bufnr)
+                    local opts = { buffer = bufnr }
+
+                    -- ---------------------------------------------------------
+                    -- Hunk navigation
+                    -- ---------------------------------------------------------
+
+                    -- Jump to the next Git change.
+                    --
+                    --     ]h
+                    vim.keymap.set("n", "]h", function()
+                        gitsigns.nav_hunk("next")
+                    end, vim.tbl_extend("force", opts, {
+                        desc = "Next Git hunk",
+                    }))
+
+                    -- Jump to the previous Git change.
+                    --
+                    --     [h
+                    vim.keymap.set("n", "[h", function()
+                        gitsigns.nav_hunk("prev")
+                    end, vim.tbl_extend("force", opts, {
+                        desc = "Previous Git hunk",
+                    }))
+
+                    -- ---------------------------------------------------------
+                    -- Inspecting changes
+                    -- ---------------------------------------------------------
+
+                    -- Show the original Git content for the current hunk in a
+                    -- floating window, without modifying the file.
+                    --
+                    --     Space + g + p
+                    vim.keymap.set("n", "<Leader>gp", gitsigns.preview_hunk,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Preview Git hunk",
+                        })
+                    )
+
+                    -- Show a side-by-side comparison of the current file against
+                    -- the Git index.
+                    --
+                    --     Space + g + d
+                    vim.keymap.set("n", "<Leader>gd", gitsigns.diffthis,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Diff current file",
+                        })
+                    )
+
+                    -- ---------------------------------------------------------
+                    -- Staging and resetting changes
+                    -- ---------------------------------------------------------
+
+                    -- Stage the current hunk in Git's index.
+                    --
+                    -- This is equivalent to staging only the selected group of
+                    -- changed lines, rather than staging the entire file.
+                    --
+                    --     Space + g + s
+                    vim.keymap.set("n", "<Leader>gs", gitsigns.stage_hunk,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Stage Git hunk",
+                        })
+                    )
+
+
+                    -- Reset the current hunk in the working tree.
+                    --
+                    -- WARNING: This discards the unstaged changes in the hunk.
+                    -- It does not remove changes already staged in Git's index.
+                    --
+                    --     Space + g + r
+                    vim.keymap.set("n", "<Leader>gr", gitsigns.reset_hunk,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Reset Git hunk",
+                        })
+                    )
+
+
+                    -- Undo staging for the current hunk.
+                    --
+                    -- This removes the hunk from Git's index but preserves the
+                    -- corresponding changes in the working tree.
+                    --
+                    --     Space + g + u
+                    vim.keymap.set("n", "<Leader>gu", gitsigns.undo_stage_hunk,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Unstage Git hunk",
+                        })
+                    )
+
+
+                    -- ---------------------------------------------------------
+                    -- Git blame
+                    -- ---------------------------------------------------------
+
+                    -- Display information about the commit that last changed
+                    -- the line under the cursor.
+                    --
+                    -- This opens a floating window with blame information.
+                    --
+                    --     Space + g + b
+                    vim.keymap.set("n", "<Leader>gb", gitsigns.blame_line,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Show Git blame",
+                        })
+                    )
+
+
+                    -- Toggle inline blame information for the current line.
+                    --
+                    -- The information is displayed as virtual text at the end
+                    -- of the line, without modifying the file.
+                    --
+                    --     Space + g + B
+                    vim.keymap.set("n", "<Leader>gB", gitsigns.toggle_current_line_blame,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Toggle inline Git blame",
+                        })
+                    )
+
+                end,
+            })
+        end,
+    },
+
+
     -- -------------------------------------------------------------------------
     -- File explorer
     -- -------------------------------------------------------------------------
@@ -1264,6 +1550,93 @@ vim.keymap.set("n", "]d", function()
     vim.diagnostic.jump({ count = 1, float = true })
 end, {
     desc = "Next diagnostic",
+})
+
+
+-- =============================================================================
+-- Telescope
+-- =============================================================================
+
+-- Telescope provides searchable pickers for files, project text, open buffers,
+-- help documentation, and information supplied by language servers.
+--
+-- All mappings use Space + f as a common prefix:
+--
+--     Space + f + f    Find files
+--     Space + f + g    Search project text
+--     Space + f + w    Search word under cursor
+--     Space + f + b    Find open buffers
+--     Space + f + h    Search help documentation
+--     Space + f + d    Search diagnostics
+--     Space + f + s    Search document symbols
+--     Space + f + r    Search LSP references
+
+local builtin = require("telescope.builtin")
+
+
+-- Find files in the current working directory.
+--
+-- Useful when the desired filename is known but its directory is not.
+vim.keymap.set("n", "<Leader>ff", builtin.find_files, {
+    desc = "Find files",
+})
+
+
+-- Search for text across files in the current working directory.
+--
+-- This uses ripgrep and updates the results as the query changes.
+vim.keymap.set("n", "<Leader>fg", builtin.live_grep, {
+    desc = "Search project text",
+})
+
+
+-- Search for the word currently under the cursor.
+--
+-- Useful for finding occurrences of a variable, function, or identifier
+-- without typing its name manually.
+vim.keymap.set("n", "<Leader>fw", builtin.grep_string, {
+    desc = "Search word under cursor",
+})
+
+
+-- Switch between currently open buffers.
+--
+-- Complements Bufferline's Alt+Left and Alt+Right navigation when many
+-- buffers are open.
+vim.keymap.set("n", "<Leader>fb", builtin.buffers, {
+    desc = "Find open buffers",
+})
+
+
+-- Search Neovim's help topics interactively.
+vim.keymap.set("n", "<Leader>fh", builtin.help_tags, {
+    desc = "Search help",
+})
+
+
+-- Search diagnostics from open buffers.
+--
+-- Complements Space+d, [d, and ]d, which are better for inspecting and
+-- navigating individual diagnostics.
+vim.keymap.set("n", "<Leader>fd", builtin.diagnostics, {
+    desc = "Search diagnostics",
+})
+
+
+-- Search symbols reported by the language server for the current document.
+--
+-- For example, clangd can report C++ classes and functions, while
+-- basedpyright can report Python classes and functions.
+vim.keymap.set("n", "<Leader>fs", builtin.lsp_document_symbols, {
+    desc = "Search document symbols",
+})
+
+
+-- Search references to the symbol under the cursor using the attached LSP.
+--
+-- Unlike plain text searching, references are resolved by the language server.
+vim.keymap.set("n", "<Leader>fr", builtin.lsp_references, {
+    desc = "Search LSP references",
 })
 
 
