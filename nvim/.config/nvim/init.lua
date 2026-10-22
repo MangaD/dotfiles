@@ -1201,6 +1201,35 @@ require("lazy").setup({
             -- The basedpyright-langserver executable must be installed
             -- separately and available in PATH.
             vim.lsp.enable("basedpyright")
+
+
+            -- -----------------------------------------------------------------
+            -- Python formatting and linting: Ruff
+            -- -----------------------------------------------------------------
+
+            -- Ruff complements basedpyright rather than replacing it.
+            --
+            -- basedpyright:
+            --     Type checking, completion, definitions, references, and
+            --     general Python language intelligence.
+            --
+            -- Ruff:
+            --     Code formatting, lint diagnostics, and import-related
+            --     code actions.
+            --
+            -- Ruff provides a built-in language server through:
+            --
+            --     ruff server
+            --
+            -- Install the executable separately:
+            --
+            --     pipx install ruff
+            --
+            -- The `ruff` executable must be available in PATH.
+            --
+            -- nvim-lspconfig already supplies the default Ruff server
+            -- configuration, so we only need to enable it.
+            vim.lsp.enable("ruff")
         end,
     },
 
@@ -1362,10 +1391,19 @@ local function check_treesitter_dependencies()
             minor = tonumber(minor)
             patch = tonumber(patch)
 
+            -- Require tree-sitter-cli version 0.26.1 or newer.
+            --
+            -- Compare version components from left to right:
+            --
+            --     1.0.0   > 0.26.1
+            --     0.27.0  > 0.26.1
+            --     0.26.1  = 0.26.1
+            --     0.26.0  < 0.26.1
+            --     0.25.9  < 0.26.1
             local version_ok =
                 major > 0
-                or minor > 26
-                or (minor == 26 and patch >= 1)
+                or (major == 0 and minor > 26)
+                or (major == 0 and minor == 26 and patch >= 1)
 
             if not version_ok then
                 table.insert(
@@ -1641,6 +1679,122 @@ vim.keymap.set("n", "<Leader>fr", builtin.lsp_references, {
 
 
 -- =============================================================================
+-- Formatting
+-- =============================================================================
+
+-- Format the current buffer using Neovim's built-in LSP client.
+--
+--     Space + f + m    Format current buffer
+--
+-- Neovim does not format the code itself. Instead, it sends a formatting
+-- request to an attached language server that supports document formatting.
+--
+-- The formatter used therefore depends on the current filetype and the
+-- language servers configured for that file.
+--
+-- -------------------------------------------------------------------------
+-- C and C++
+-- -------------------------------------------------------------------------
+--
+-- clangd provides document formatting using the clang-format engine.
+--
+-- clangd looks for a `.clang-format` file in the directory containing the
+-- source file or one of its parent directories.
+--
+-- If a `.clang-format` file is found, its settings determine the formatting
+-- style, including indentation, brace placement, spacing, and line length.
+--
+-- If no `.clang-format` file is found, clangd uses its fallback style,
+-- which is LLVM by default.
+--
+-- A project can define its own style in a `.clang-format` file.
+-- No separate clang-format executable is required for formatting through
+-- clangd, because clangd includes the formatting engine.
+--
+-- -------------------------------------------------------------------------
+-- Python
+-- -------------------------------------------------------------------------
+--
+-- basedpyright provides Python language intelligence and type checking,
+-- but it does not provide document formatting.
+--
+-- Ruff is therefore enabled as a second Python language server.
+-- Ruff handles formatting and also provides lint diagnostics.
+--
+-- Ruff formatting can be configured per project using:
+--
+--     pyproject.toml
+--     ruff.toml
+--     .ruff.toml
+--
+-- Without a project configuration, Ruff uses its own default formatting
+-- rules.
+--
+-- -------------------------------------------------------------------------
+-- Other languages
+-- -------------------------------------------------------------------------
+--
+-- This mapping is not restricted to C, C++, or Python.
+--
+-- It can format any buffer for which an attached language server supports
+-- the LSP document-formatting capability.
+--
+-- For example, formatting Lua, Bash, or another language would require
+-- configuring a suitable language server or formatter integration.
+--
+-- Tree-sitter provides syntax parsing and highlighting, not formatting.
+-- Installing a Tree-sitter parser alone is therefore insufficient.
+--
+-- -------------------------------------------------------------------------
+-- Behavior
+-- -------------------------------------------------------------------------
+--
+-- Formatting is manual: it happens only when this shortcut is pressed.
+-- Files are not automatically formatted when saved.
+--
+-- The request is synchronous, so Neovim waits for the formatter to finish.
+-- A timeout prevents an unresponsive server from blocking indefinitely.
+--
+-- If no attached language server supports formatting, display a warning
+-- rather than silently doing nothing.
+
+vim.keymap.set("n", "<Leader>fm", function()
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    -- Find attached language servers that support whole-document formatting.
+    local clients = vim.lsp.get_clients({
+        bufnr = bufnr,
+        method = "textDocument/formatting",
+    })
+
+    if #clients == 0 then
+        vim.notify(
+            "No LSP formatter available for this buffer",
+            vim.log.levels.WARN
+        )
+        return
+    end
+
+    -- Request formatting from an attached server.
+    --
+    -- At present:
+    --
+    --     C/C++   -> clangd
+    --     Python  -> Ruff
+    --
+    -- For other languages, Neovim uses an attached server that supports
+    -- document formatting.
+    vim.lsp.buf.format({
+        bufnr = bufnr,
+        async = false,
+        timeout_ms = 3000,
+    })
+end, {
+    desc = "Format current buffer",
+})
+
+
+-- =============================================================================
 -- Language Server Protocol
 -- =============================================================================
 
@@ -1653,6 +1807,19 @@ vim.api.nvim_create_autocmd("LspAttach", {
         local opts = {
             buffer = args.buf,
         }
+
+        local client = vim.lsp.get_client_by_id(args.data.client_id)
+
+        -- Ruff and basedpyright both attach to Python files.
+        --
+        -- Prefer basedpyright for hover documentation (the K mapping),
+        -- while keeping Ruff available for formatting, lint diagnostics,
+        -- and code actions.
+        --
+        -- This does not disable Ruff's formatting or diagnostics.
+        if client and client.name == "ruff" then
+            client.server_capabilities.hoverProvider = false
+        end
 
 
         -- ---------------------------------------------------------------------
@@ -1735,29 +1902,39 @@ vim.api.nvim_create_autocmd("LspAttach", {
             })
         )
 
+
         -- ---------------------------------------------------------------------
         -- Completion
         -- ---------------------------------------------------------------------
 
-        -- Enable Neovim's built-in LSP completion for the current buffer.
-        --
-        -- Completion suggestions are provided by the attached language server.
+        -- Enable Neovim's built-in LSP completion only for language servers
+        -- that advertise completion support.
         --
         -- Examples:
         --
-        --   C/C++    clangd
-        --   Python   basedpyright
+        --     C/C++    clangd
+        --     Python   basedpyright
         --
-        -- Completion is integrated with Neovim's normal Insert-mode completion
-        -- menu rather than using a separate completion plugin.
-        vim.lsp.completion.enable(
-            true,
-            args.data.client_id,
-            args.buf,
-            {
-                -- Automatically show completion suggestions while typing.
-                autotrigger = true,
-            }
-        )
+        -- Ruff also attaches to Python buffers, but its primary responsibilities
+        -- here are formatting, linting, and code actions.
+        --
+        -- Checking the capability avoids trying to enable completion for
+        -- servers that do not provide it.
+        --
+        -- Completion uses Neovim's built-in Insert-mode completion menu.
+        if client
+            and client:supports_method("textDocument/completion", args.buf)
+        then
+            vim.lsp.completion.enable(
+                true,
+                args.data.client_id,
+                args.buf,
+                {
+                    -- Automatically show suggestions while typing.
+                    autotrigger = true,
+                }
+            )
+        end
+
     end,
 })
