@@ -6,8 +6,9 @@ lightweight.
 
 The interface takes some inspiration from VS Code, with a file explorer, buffer
 tabs, integrated terminal, status line, icons, multiple color schemes,
-Tree-sitter syntax highlighting, Language Server Protocol (LSP) support,
-Telescope fuzzy finding, Git change indicators, and manual LSP-based formatting.
+toggleable transparency, Tree-sitter syntax highlighting, sticky scroll,
+Language Server Protocol (LSP) support, Telescope fuzzy finding, Git change
+indicators, and manual LSP-based formatting.
 
 The configuration is written in Lua and uses
 [`lazy.nvim`](https://github.com/folke/lazy.nvim) for plugin management.
@@ -483,6 +484,57 @@ The selected color scheme name is displayed as a notification.
 Changing the theme this way is temporary. Restarting Neovim restores the
 configured default.
 
+### Toggleable Transparency
+
+The editor supports toggleable background transparency without requiring an
+additional plugin.
+
+Transparency is disabled by default. When enabled, selected Neovim interface
+elements stop drawing their own background colors, allowing the terminal's
+background to show through.
+
+```text
+Space+u+t           Toggle transparency
+```
+
+The following interface elements become transparent:
+
+- Main editor background, including the line-number and sign columns
+- File explorer (nvim-tree)
+- Sticky scroll (nvim-treesitter-context)
+- Buffer tabs (bufferline.nvim)
+- Most status-line sections (lualine.nvim)
+
+The Lualine mode indicator on the left and the line/column position indicator
+on the right retain their original colored backgrounds. This preserves their
+contrast and readability.
+
+### Transparency and Color Schemes
+
+Transparency can be enabled or disabled without restarting Neovim.
+
+The current transparency setting is preserved when switching color schemes
+with F7 and F8.
+
+When transparency is disabled, the original highlight colors for the currently
+selected theme are restored. For example, switching from Kanagawa Dragon to
+Gruvbox while transparency is enabled and then disabling transparency restores
+Gruvbox's normal colors.
+
+Both the selected color scheme and transparency setting are temporary.
+Restarting Neovim restores Kanagawa Dragon with transparency disabled.
+
+### Terminal Transparency
+
+Neovim controls whether its interface elements draw background colors, but
+the terminal emulator controls the actual window opacity.
+
+To see the desktop or windows behind the terminal, transparency must also be
+configured in the terminal emulator.
+
+Neovim transparency can still be useful with an opaque terminal because it
+allows the editor to use the terminal's own background color.
+
 ## Tree-sitter
 
 [`nvim-treesitter`](https://github.com/nvim-treesitter/nvim-treesitter) provides
@@ -568,6 +620,40 @@ To inspect the syntax tree for the current buffer:
 
 This is also a useful way to verify that Tree-sitter is active for the current
 buffer.
+
+## Sticky Scroll
+
+[`nvim-treesitter-context`](https://github.com/nvim-treesitter/nvim-treesitter-context)
+provides sticky scroll functionality similar to VS Code.
+
+When scrolling through a long function, class, loop, or other supported syntax
+structure, the surrounding code context remains visible at the top of the
+editor window.
+
+The plugin uses the existing Tree-sitter parsers, so no separate language
+servers or external executables are required beyond the Tree-sitter
+dependencies already described.
+
+### Configuration
+
+Sticky scroll is enabled by default with the following behavior:
+
+- Up to three lines of surrounding code context are displayed.
+- Context follows the current cursor position.
+- Line numbers are displayed beside the sticky context.
+- Sticky scroll is disabled in windows shorter than 10 lines.
+- Context is displayed only in the active editor window.
+
+The feature requires an installed Tree-sitter parser and appropriate context
+queries for the current language.
+
+### Keybinding
+
+```text
+Space+u+s           Toggle sticky scroll
+```
+
+The toggle takes effect immediately without restarting Neovim.
 
 ## Language Server Protocol
 
@@ -786,6 +872,7 @@ The configuration currently uses:
 | `ojroques/nvim-bufdel` | Safe buffer deletion |
 | `NMAC427/guess-indent.nvim` | Automatic indentation detection |
 | `nvim-treesitter/nvim-treesitter` | Tree-sitter parser management |
+| `nvim-treesitter/nvim-treesitter-context` | Sticky scroll using Tree-sitter context |
 | `nvim-telescope/telescope.nvim` | Fuzzy finding and searchable pickers |
 | `nvim-lua/plenary.nvim` | Telescope utility dependency |
 | `lewis6991/gitsigns.nvim` | Git signs, hunks, and blame |
@@ -913,9 +1000,9 @@ LSP configuration and attached language servers can be checked with:
 The configuration is intentionally being expanded incrementally rather than
 installing a large preconfigured Neovim distribution.
 
-Tree-sitter highlighting, LSP support and built-in completion for C/C++ and
-Python, Telescope fuzzy finding, Git hunk management, and manual formatting for
-C/C++ and Python are configured.
+Tree-sitter highlighting, sticky scroll, toggleable transparency, LSP support
+and built-in completion for C/C++ and Python, Telescope fuzzy finding, Git hunk
+management, and manual formatting for C/C++ and Python are configured.
 
 Potential additions include:
 

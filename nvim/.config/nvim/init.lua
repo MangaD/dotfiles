@@ -348,9 +348,6 @@ require("lazy").setup({
                 italic_comments = false,
                 transparent = false,
             })
-
-            -- This is the default color scheme applied when Neovim starts.
-            vim.cmd.colorscheme("vscode")
         end,
     },
 
@@ -828,10 +825,9 @@ require("lazy").setup({
                         -- Git.
                         "diff",
 
-                        -- Errors, warnings, information, and hints.
-                        --
-                        -- These become especially useful once LSP support is
-                        -- configured.
+                        -- Display errors, warnings, information, and hints reported
+                        -- by the configured language servers (clangd, basedpyright,
+                        -- and Ruff).
                         "diagnostics",
                     },
 
@@ -924,10 +920,11 @@ require("lazy").setup({
                         --     markdown
                         "filetype",
 
-                        -- Active LSP clients and LSP progress for the current buffer.
+                        -- Display active LSP clients and LSP progress for the
+                        -- current buffer.
                         --
-                        -- This will become useful once Language Server Protocol support is
-                        -- configured.
+                        -- The configured servers include clangd for C/C++ and
+                        -- basedpyright and Ruff for Python.
                         "lsp_status",
                     },
 
@@ -974,10 +971,10 @@ require("lazy").setup({
                     -- produces behavior closer to VS Code's editor tabs.
                     mode = "buffers",
 
-                    -- Display diagnostics reported by Neovim's LSP client.
+                    -- Display diagnostics reported by Neovim's LSP clients.
                     --
-                    -- This will become useful later when LSP support is added.
-                    -- Until then, it has no significant effect.
+                    -- This includes diagnostics from clangd for C/C++ and
+                    -- basedpyright and Ruff for Python.
                     diagnostics = "nvim_lsp",
 
                     -- Show filetype icons provided by nvim-web-devicons.
@@ -1152,6 +1149,71 @@ require("lazy").setup({
     },
 
 
+
+    -- -------------------------------------------------------------------------
+    -- Sticky scroll (Tree-sitter context)
+    -- -------------------------------------------------------------------------
+
+    {
+        "nvim-treesitter/nvim-treesitter-context",
+
+        -- Tree-sitter context uses the installed language parsers to identify
+        -- enclosing functions, classes, loops, and other syntax structures.
+        --
+        -- When scrolling through a long function or class, its declaration
+        -- remains visible at the top of the editor window.
+        --
+        -- This is similar to VS Code's Sticky Scroll feature.
+        --
+        -- A Tree-sitter parser must be installed for the language.
+        -- Languages without supported context queries may not show context.
+        dependencies = {
+            "nvim-treesitter/nvim-treesitter",
+        },
+
+        config = function()
+            local context = require("treesitter-context")
+
+            context.setup({
+                -- Enable sticky scroll when Neovim starts.
+                enable = true,
+
+                -- Show at most three lines of enclosing code context.
+                --
+                -- This prevents deeply nested code from occupying too much
+                -- vertical space in the editor.
+                max_lines = 3,
+
+                -- Show context for the current cursor position.
+                --
+                -- "cursor" follows the structure containing the cursor.
+                -- "topline" would instead follow the top visible line.
+                mode = "cursor",
+
+                -- Display line numbers beside the sticky context.
+                line_numbers = true,
+
+                -- Do not display sticky context in very small windows.
+                --
+                -- This is useful with the integrated terminal or other splits.
+                min_window_height = 10,
+
+                -- Only show context in the active editor window.
+                multiwindow = false,
+            })
+
+            -- Toggle sticky scroll without restarting Neovim.
+            --
+            --     Space + u + s    Toggle sticky scroll
+            vim.keymap.set("n", "<Leader>us", function()
+                context.toggle()
+            end, {
+                desc = "Toggle sticky scroll",
+            })
+        end,
+    },
+
+
     -- -------------------------------------------------------------------------
     -- Language Server Protocol
     -- -------------------------------------------------------------------------
@@ -1236,10 +1298,14 @@ require("lazy").setup({
 })
 
 
+
 -- =============================================================================
--- Color scheme selection
+-- Color scheme selection and toggleable transparency
 -- =============================================================================
 
+-- Available color schemes.
+--
+-- F7 and F8 cycle through this list.
 local colorschemes = {
     "vscode",
     "catppuccin-mocha",
@@ -1251,16 +1317,215 @@ local colorschemes = {
     "gruvbox",
 }
 
+-- Start with Kanagawa Dragon.
 local colorscheme_index = 7
-vim.cmd.colorscheme(colorschemes[colorscheme_index])
 
-
--- Apply the currently selected color scheme and display its name.
+-- Transparency is disabled by default.
 --
--- The notification is scheduled after the theme has finished loading because
--- some color schemes trigger redraws that can otherwise hide the message.
+-- Transparency means that selected Neovim highlight groups do not draw
+-- a background. Actual window opacity is controlled by the terminal emulator.
+local transparency_enabled = false
+
+-- Original highlight definitions for the currently selected theme.
+--
+-- These are captured when transparency is enabled and restored when it is
+-- disabled. The snapshot is discarded whenever the theme changes.
+local saved_highlights = {}
+
+-- Incremented whenever a theme change invalidates a pending transparency
+-- update. This prevents a scheduled update for an older theme from running
+-- after a newer theme has been selected.
+local theme_generation = 0
+
+-- -------------------------------------------------------------------------
+-- Select which highlight groups should become transparent
+-- -------------------------------------------------------------------------
+
+local transparent_editor_groups = {
+    Normal = true,
+    NormalNC = true,
+    SignColumn = true,
+    EndOfBuffer = true,
+    LineNr = true,
+    FoldColumn = true,
+
+    -- Optional editor backgrounds.
+    CursorLine = true,
+    CursorLineNr = true,
+    ColorColumn = true,
+}
+
+local function should_be_transparent(name)
+    -- Main editor.
+    if transparent_editor_groups[name] then
+        return true
+    end
+
+    -- File explorer.
+    if name:match("^NvimTree") then
+        return true
+    end
+
+    -- Sticky scroll.
+    if name:match("^TreesitterContext") then
+        return true
+    end
+
+    -- Bufferline: tabs, separators, diagnostics, and indicators.
+    if name:match("^BufferLine") then
+        return true
+    end
+
+    -- Lualine: make most of the status line transparent, but preserve
+    -- the colored backgrounds of the mode indicator and line numbers.
+    --
+    -- In the current Lualine layout:
+    --   Section A displays the editor mode.
+    --   Section Z displays the cursor's line/column information.
+    --
+    -- These sections use dark foreground text on distinctive backgrounds,
+    -- so removing their backgrounds would make the text difficult to read.
+    --
+    -- Lualine highlight names typically follow this pattern:
+    --   lualine_a_normal
+    --   lualine_a_insert
+    --   lualine_z_normal
+    --   lualine_z_insert
+    --
+    -- Preserve all mode variants, not just Normal mode.
+    if name:match("^lualine_") then
+        -- Keep the mode indicator (section A) opaque.
+        if name:match("^lualine_a_") then
+            return false
+        end
+
+        -- Keep the line/column indicator (section Z) opaque.
+        if name:match("^lualine_z_") then
+            return false
+        end
+
+        -- Make all other Lualine sections transparent.
+        return true
+    end
+
+    return false
+end
+
+-- -------------------------------------------------------------------------
+-- Save and modify highlight definitions
+-- -------------------------------------------------------------------------
+
+-- Apply transparency to all currently defined matching highlight groups.
+--
+-- We save each group's original definition, including any highlight link.
+-- For transparent rendering, we resolve linked groups into concrete colors
+-- and remove only their background attributes.
+--
+-- Saving the original link is important: restoring a linked group as a
+-- standalone definition could otherwise change how the theme behaves.
+local function apply_transparency()
+    if not transparency_enabled then
+        return
+    end
+
+    -- Neovim returns a table of all defined highlight groups.
+    local groups = vim.api.nvim_get_hl(0, {})
+
+    for name, _ in pairs(groups) do
+        if should_be_transparent(name) then
+            -- Save the original definition only once per transparency cycle.
+            if saved_highlights[name] == nil then
+                saved_highlights[name] = vim.api.nvim_get_hl(0, {
+                    name = name,
+                    link = true,
+                })
+            end
+
+            -- Resolve links to obtain the visible foreground and styles.
+            local hl = vim.api.nvim_get_hl(0, {
+                name = name,
+                link = false,
+            })
+
+            -- Remove GUI and terminal background colors.
+            hl.bg = nil
+            hl.ctermbg = nil
+
+            -- Do not inherit a reverse-video background.
+            --
+            -- Reverse-video highlights swap foreground and background;
+            -- leaving reverse enabled can make a supposedly transparent
+            -- element appear opaque.
+            hl.reverse = nil
+            hl.standout = nil
+
+            vim.api.nvim_set_hl(0, name, hl)
+        end
+    end
+end
+
+-- Restore the highlight definitions saved for the active theme.
+--
+-- This does not reload the color scheme, so it avoids unnecessarily
+-- replacing plugin-generated colors.
+local function restore_highlights()
+    for name, hl in pairs(saved_highlights) do
+        vim.api.nvim_set_hl(0, name, hl)
+    end
+
+    saved_highlights = {}
+end
+
+-- -------------------------------------------------------------------------
+-- Coordinate theme changes with transparency
+-- -------------------------------------------------------------------------
+
+-- Called when the color scheme changes.
+--
+-- This handles both our F7/F8 mappings and manual :colorscheme commands.
+--
+-- Schedule transparency until the current color-scheme operation finishes,
+-- allowing plugins to process their ColorScheme callbacks first.
+local function on_colorscheme_changed()
+    theme_generation = theme_generation + 1
+    local generation = theme_generation
+
+    -- Highlights from the previous theme must never be restored over
+    -- the newly selected theme.
+    saved_highlights = {}
+
+    if not transparency_enabled then
+        return
+    end
+
+    vim.schedule(function()
+        -- Ignore stale callbacks from earlier theme changes.
+        if generation ~= theme_generation then
+            return
+        end
+
+        apply_transparency()
+    end)
+end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = on_colorscheme_changed,
+    desc = "Keep transparency consistent when changing color schemes",
+})
+
+-- Apply a color scheme while preserving the transparency preference.
+--
+-- If transparency is currently enabled, first restore the original
+-- highlights for the old theme. Then load the new theme.
+--
+-- The ColorScheme autocmd discards the old snapshot and captures the
+-- new theme's highlights after its callbacks have run.
 local function apply_colorscheme()
     local colorscheme = colorschemes[colorscheme_index]
+
+    if transparency_enabled then
+        restore_highlights()
+    end
 
     vim.cmd.colorscheme(colorscheme)
 
@@ -1269,37 +1534,71 @@ local function apply_colorscheme()
     end)
 end
 
+-- -------------------------------------------------------------------------
+-- Toggle transparency
+-- -------------------------------------------------------------------------
 
--- Switch to the previous color scheme.
+--     Space + u + t    Toggle transparency
 --
---     F7    Previous theme
-vim.keymap.set(
-    "n",
-    "<F7>",
-    function()
-        colorscheme_index =
-            (colorscheme_index - 2) % #colorschemes + 1
-
-        apply_colorscheme()
-    end,
-    { desc = "Previous color scheme" }
-)
-
-
--- Switch to the next color scheme.
+-- ON:
+--   Capture the current theme's highlights and clear their backgrounds.
 --
---     F8    Next theme
-vim.keymap.set(
-    "n",
-    "<F8>",
-    function()
-        colorscheme_index =
-            colorscheme_index % #colorschemes + 1
+-- OFF:
+--   Restore the highlights saved for the current theme.
+--
+-- The selected color scheme does not change.
+vim.keymap.set("n", "<Leader>ut", function()
+    transparency_enabled = not transparency_enabled
 
-        apply_colorscheme()
-    end,
-    { desc = "Next color scheme" }
-)
+    if transparency_enabled then
+        apply_transparency()
+    else
+        -- Invalidate any scheduled transparency update.
+        theme_generation = theme_generation + 1
+
+        restore_highlights()
+    end
+
+    vim.notify(
+        "Transparency: " .. (transparency_enabled and "on" or "off")
+    )
+end, {
+    desc = "Toggle transparency",
+})
+
+-- -------------------------------------------------------------------------
+-- Color scheme navigation
+-- -------------------------------------------------------------------------
+
+--     F7    Previous color scheme
+vim.keymap.set("n", "<F7>", function()
+    colorscheme_index =
+        (colorscheme_index - 2) % #colorschemes + 1
+
+    apply_colorscheme()
+end, {
+    desc = "Previous color scheme",
+})
+
+--     F8    Next color scheme
+vim.keymap.set("n", "<F8>", function()
+    colorscheme_index =
+        colorscheme_index % #colorschemes + 1
+
+    apply_colorscheme()
+end, {
+    desc = "Next color scheme",
+})
+
+-- -------------------------------------------------------------------------
+-- Initial color scheme
+-- -------------------------------------------------------------------------
+
+-- Load the default theme only after all functions and autocmds above have
+-- been defined.
+--
+-- Transparency starts disabled, so the theme loads with its normal colors.
+apply_colorscheme()
 
 
 -- =============================================================================
