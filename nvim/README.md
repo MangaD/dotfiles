@@ -1011,6 +1011,101 @@ LSP configuration and attached language servers can be checked with:
 :checkhealth vim.lsp
 ```
 
+## Comparison with NvChad
+
+This configuration shares several goals with [NvChad](https://nvchad.com/), a
+preconfigured Neovim environment designed to provide a modern, IDE-like editing
+experience.
+
+Both provide features such as file exploration, buffer navigation, status lines,
+multiple color schemes, Tree-sitter highlighting, LSP integration, fuzzy finding,
+and Git integration.
+
+The main difference is their approach.
+
+NvChad provides a more comprehensive environment with its own UI components,
+defaults, plugin integrations, and customization conventions. This configuration
+is built incrementally, using individual plugins and Neovim's built-in
+functionality wherever practical.
+
+### Feature comparison
+
+| Feature | This configuration | NvChad |
+| --- | --- | --- |
+| Plugin management | lazy.nvim | lazy.nvim |
+| File explorer | nvim-tree | nvim-tree |
+| Buffer navigation | bufferline.nvim | Custom tabufline |
+| Status line | lualine.nvim | Custom status line |
+| Integrated terminal | Persistent horizontal split | Multiple terminal layouts |
+| Color schemes | Eight configured variants | Extensive theme collection |
+| Transparency | Custom toggle with selective transparency | Theme-based transparency support |
+| Syntax highlighting | Tree-sitter | Tree-sitter |
+| Sticky scroll | nvim-treesitter-context | Not a standard core feature |
+| LSP | clangd, basedpyright, Ruff | Configurable LSP infrastructure |
+| Completion | Neovim's built-in completion | Dedicated completion framework |
+| Formatting | Manual LSP formatting | Dedicated formatting infrastructure |
+| Git integration | Gitsigns | Gitsigns |
+| Fuzzy finding | Telescope | Telescope |
+| Automatic pairs | Not installed | Included |
+| Keybinding discovery | Not installed | Cheatsheet and keybinding tools |
+| Dashboard | Not installed | NvDash |
+
+NvChad's bundled features and implementation details may change between
+releases.
+
+### Design philosophy
+
+This configuration prioritizes:
+
+- **Simplicity:** Add functionality only when there is a practical need.
+- **Transparency:** Keep configuration logic readable and extensively commented.
+- **Native functionality:** Prefer Neovim's built-in capabilities when sufficient.
+- **Minimal dependencies:** Avoid unnecessary convenience plugins.
+- **Predictability:** Favor explicit configuration and manual control.
+- **Maintainability:** Introduce and test changes incrementally.
+
+Some features commonly found in Neovim distributions, such as automatic pairing,
+surround operations, automatic session restoration, and keybinding discovery,
+are intentionally omitted.
+
+These omissions are design choices rather than missing requirements.
+
+### Performance
+
+Both configurations use lazy.nvim and support deferred plugin loading.
+
+Startup performance depends on the installed plugins, their configuration, the
+system, and the Neovim version. No direct performance comparison has been
+performed.
+
+Startup timing can be inspected with:
+
+```bash
+nvim --startuptime /tmp/nvim-startup.log
+```
+
+Plugin loading can also be examined through lazy.nvim:
+
+```vim
+:Lazy profile
+```
+
+Performance optimizations should be based on measurements rather than plugin
+counts alone.
+
+### Why use this configuration?
+
+NvChad is a good choice for users who want a polished Neovim environment with
+many features available immediately.
+
+This configuration is intended for users who prefer to understand and control
+their editor's behavior, choose their own plugins, and avoid additional
+abstractions where possible.
+
+The goal is not to reproduce every NvChad feature, but to maintain a capable
+development environment that remains understandable, predictable, and tailored
+to its actual use.
+
 ## Planned Improvements
 
 The configuration is intentionally being expanded incrementally rather than
