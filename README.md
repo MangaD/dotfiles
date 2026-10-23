@@ -269,7 +269,19 @@ unmanaged files must remain in that directory.
 
 ### 5. Create the symbolic links
 
-Install all packages:
+Before installing the packages, inspect the changes GNU Stow would make.
+
+From the repository root, run:
+
+```bash
+cd ~/dotfiles
+stow --no-folding --simulate --verbose bash bat bin gdb git nvim ssh tmux vim
+```
+
+The `--simulate` option performs a dry run without creating or removing
+symbolic links. Review the output for conflicts or unexpected changes.
+
+Once the dry run succeeds, install all packages:
 
 ```bash
 stow --no-folding bash bat bin gdb git nvim ssh tmux vim
@@ -512,6 +524,32 @@ repository.
 
 The repository is intended to manage **configuration**, not credentials.
 
+### Checking for accidentally tracked secrets
+
+`.gitignore` helps prevent certain files from being added accidentally,
+but it does not protect files that are already tracked by Git.
+
+Before committing changes, review the staged files:
+
+```bash
+git diff --cached --name-only
+git diff --cached
+```
+
+To inspect all tracked filenames:
+
+```bash
+git ls-files
+```
+
+Never commit private SSH keys, passwords, API tokens, or other credentials.
+
+For additional protection, a dedicated secret scanner can be used to
+check repository contents and Git history.
+
+If a credential is accidentally committed, removing it in a later
+commit is not sufficient. The credential should be revoked or rotated,
+and the repository history should be assessed.
 
 ## Configuration Overview
 
