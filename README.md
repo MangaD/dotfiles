@@ -227,23 +227,45 @@ cd ~/dotfiles
 
 ### 4. Handle existing configuration
 
-GNU Stow will not overwrite conflicting files automatically.
+GNU Stow does not overwrite conflicting files automatically.
 
-If configuration files already exist, move them into the corresponding
-package in this repository before creating the symbolic links.
+Before installing the dotfiles, back up any existing configuration files
+that would conflict with the repository.
 
-For example, for an existing `.bashrc`:
+For example, if `~/.bashrc` already exists as a regular file:
 
 ```bash
-mv ~/.bashrc ~/dotfiles/bash/.bashrc
+cp -a ~/.bashrc ~/.bashrc.backup
 ```
 
-Do the same for any other configuration that should be managed by this
-repository.
+Compare the existing configuration with the tracked version:
 
-Be especially careful with `~/.ssh/`: only the SSH configuration belongs
-in this repository. Private keys and other SSH files should remain in
-`~/.ssh/`.
+```bash
+diff -u ~/.bashrc ~/dotfiles/bash/.bashrc
+```
+
+Review any differences and manually migrate machine-specific settings
+to the appropriate local configuration files.
+
+For example, Bash machine-specific settings belong in:
+
+```text
+~/.bashrc.local
+```
+
+Once the existing configuration has been backed up and reviewed,
+remove or rename the conflicting file before running Stow:
+
+```bash
+mv ~/.bashrc ~/.bashrc.before-stow
+```
+
+Do not move existing configuration files directly into the repository
+without reviewing them first, as doing so could overwrite the tracked
+configuration.
+
+Be especially careful with `~/.ssh/`. SSH private keys and other
+unmanaged files must remain in that directory.
 
 ### 5. Create the symbolic links
 
