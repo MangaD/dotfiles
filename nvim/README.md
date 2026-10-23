@@ -281,6 +281,22 @@ Alt+Up             Move line up
 
 The same shortcuts work on Visual selections and keep the moved lines selected.
 
+### Comment toggling
+
+Neovim's built-in comment operator allows lines and selections to be
+commented or uncommented without an additional plugin.
+
+```text
+gcc                 Toggle comment on the current line
+gc                  Toggle comments using a motion
+gc (Visual mode)    Toggle comments on the selection
+```
+
+For example, `gcip` toggles comments for the current paragraph.
+
+Comment syntax is determined by the current filetype and its `commentstring`
+setting.
+
 ## Telescope
 
 [`telescope.nvim`](https://github.com/nvim-telescope/telescope.nvim) provides
@@ -1007,7 +1023,6 @@ management, and manual formatting for C/C++ and Python are configured.
 Potential additions include:
 
 * Additional language-specific formatters and linters
-* Comment toggling
 * Surround operations
 * Automatic bracket and quote pairs
 * Session/project persistence
