@@ -1,0 +1,40 @@
+name: Validate dotfiles
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install GNU Stow
+        run: sudo apt-get update && sudo apt-get install -y stow
+
+      - name: Check Bash syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in bash/.bashrc bash/.bash_profile; do
+            bash -n "$file"
+          done
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find bash/.config/bash/functions bin/.local/bin -type f \( -name '*.sh' -o -name 'bz' \) -print0)
+
+      - name: Check Stow package layout in an empty home
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(mktemp -d)"
+          trap 'rm -rf "$target"' EXIT
+          packages=(bash bat bin gdb git nvim ssh tmux vim)
+          stow --dir "$PWD" --target "$target" --no-folding "${packages[@]}"
+          test -L "$target/.bashrc"
+          test -L "$target/.vimrc"
+          test -L "$target/.config/nvim/init.lua"
+          test ! -e "$target/README.md"
+
