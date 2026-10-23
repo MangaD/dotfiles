@@ -34,6 +34,13 @@ dotfiles/
 ├── git/
 |   ├── .gitattributes
 │   └── .gitconfig
+├── nvim/
+│   ├── .stow-local-ignore
+│   ├── .config/
+│   │   └── nvim/
+│   │       ├── init.lua
+│   │       └── lazy-lock.json
+│   └── README.md
 ├── ssh/
 │   └── .ssh/
 │       └── config
@@ -60,6 +67,8 @@ bash/.config/bash/functions/cppsymbols.sh → ~/.config/bash/functions/cppsymbol
 bin/.local/bin/bz  → ~/.local/bin/bz
 gdb/.gdbinit       → ~/.gdbinit
 git/.gitconfig     → ~/.gitconfig
+nvim/.config/nvim/init.lua → ~/.config/nvim/init.lua
+nvim/.config/nvim/lazy-lock.json → ~/.config/nvim/lazy-lock.json
 ssh/.ssh/config    → ~/.ssh/config
 tmux/.tmux.conf    → ~/.tmux.conf
 vim/.vimrc         → ~/.vimrc
@@ -170,42 +179,51 @@ tmux is required for the managed terminal multiplexer configuration.
 The configuration also uses TPM and several tmux plugins. See the
 [tmux configuration](#tmux-plugins) section for plugin installation and usage.
 
-#### Neovim and Tree-sitter
+#### Neovim
 
-Neovim may be installed separately when a newer version than the distribution
-package is required.
+The Neovim configuration requires Neovim 0.12 or later.
 
-Machine-specific Neovim installation paths should be added to
-`~/.bashrc.local` rather than the tracked `.bashrc`. For example:
+It uses `lazy.nvim` for plugin management, Tree-sitter for syntax highlighting,
+and Neovim's built-in LSP client for language intelligence and completion.
+
+Additional dependencies include:
+
+- Git, `curl`, and `tar`
+- A C compiler
+- `tree-sitter-cli` 0.26.1 or later
+- `clangd` for C and C++
+- `basedpyright` for Python language intelligence and type checking
+- `ruff` for Python linting and formatting
+- `ripgrep` (`rg`) for project-wide text searching
+- `fd` or `fdfind` (recommended) for fast file discovery
+- A terminal with true-color support and a Nerd Font for the intended interface
+
+Language servers are installed separately from Neovim plugins and must be
+available in `PATH`.
+
+On Debian-based systems, some dependencies can be installed with:
 
 ```bash
-export PATH="/opt/nvim-linux-arm64/bin:$PATH"
+sudo apt install clangd ripgrep fd-find pipx
 ```
 
-The Neovim Tree-sitter configuration also requires the external tools needed
-to build parsers:
+`basedpyright` and `ruff` can be installed in isolated environments using
+`pipx`.
 
-* `tar`
-* `curl`
-* `tree-sitter-cli` 0.26.1 or later
-* A C compiler
+Neovim may need to be installed separately when the distribution does not
+provide version 0.12 or later.
 
-`tree-sitter-cli` should be installed through an appropriate package manager
-rather than npm.
-
-These Neovim-specific requirements can be expanded when the Neovim
-configuration is fully documented in this README.
+For installation instructions, dependency checks, and configuration details,
+see [`nvim/README.md`](nvim/README.md).
 
 ### 3. Clone the repository
 
 Clone the repository into the home directory:
 
 ```bash
-git clone <repository-url> ~/dotfiles
+git clone https://github.com/MangaD/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ```
-
-Replace `<repository-url>` with the URL of this repository.
 
 ### 4. Handle existing configuration
 
@@ -232,7 +250,7 @@ in this repository. Private keys and other SSH files should remain in
 Install all packages:
 
 ```bash
-stow --no-folding bash bat bin gdb git ssh tmux vim
+stow --no-folding bash bat bin gdb git nvim ssh tmux vim
 ```
 
 Or install packages individually:
@@ -243,6 +261,7 @@ stow --no-folding bat
 stow --no-folding bin
 stow --no-folding gdb
 stow --no-folding git
+stow --no-folding nvim
 stow --no-folding ssh
 stow --no-folding tmux
 stow --no-folding vim
@@ -261,6 +280,8 @@ point to the files in this repository:
 ```text
 ~/.bash_profile → ~/dotfiles/bash/.bash_profile
 ~/.bashrc       → ~/dotfiles/bash/.bashrc
+~/.config/nvim/init.lua → ~/dotfiles/nvim/.config/nvim/init.lua
+~/.config/nvim/lazy-lock.json → ~/dotfiles/nvim/.config/nvim/lazy-lock.json
 ~/.gdbinit      → ~/dotfiles/gdb/.gdbinit
 ~/.gitconfig    → ~/dotfiles/git/.gitconfig
 ~/.ssh/config   → ~/dotfiles/ssh/.ssh/config
@@ -287,7 +308,7 @@ vim/
 │   └── autoload/
 │       └── osc52.vim
 └── README.md
-````
+```
 
 with:
 
@@ -881,6 +902,39 @@ For installation requirements, configuration details, mappings, clipboard
 behavior, colorscheme selection, and usage, see
 [`vim/README.md`](vim/README.md).
 
+### Neovim
+
+The `nvim` package provides a modern, IDE-like editing environment built with
+Lua and managed through `lazy.nvim`.
+
+The configuration requires Neovim 0.12 or later and includes:
+
+- File exploration with nvim-tree
+- Buffer tabs and safe buffer deletion
+- A persistent, toggleable integrated terminal
+- A detailed status line using Lualine
+- Multiple color schemes with runtime switching
+- Toggleable editor transparency
+- Tree-sitter syntax highlighting and sticky scroll
+- LSP support for C/C++ and Python
+- Built-in LSP code completion, diagnostics, and navigation
+- Manual formatting using clangd and Ruff
+- Telescope fuzzy finding and project-wide searching
+- Gitsigns integration for Git hunks, diffs, and blame
+- OSC 52 clipboard integration for remote editing over SSH and tmux
+- Automatic indentation detection
+- Neovim's built-in comment toggling
+
+The configuration deliberately favors understandable, explicitly configured
+features over a large preconfigured Neovim distribution.
+
+Plugins are managed through `lazy.nvim`, with resolved versions recorded in
+`lazy-lock.json`. Language servers and Tree-sitter build dependencies are
+installed separately.
+
+For requirements, installation instructions, keybindings, plugin management,
+and detailed feature documentation, see [`nvim/README.md`](nvim/README.md).
+
 ## Adding New Configuration
 
 When adding another configuration file, create a new Stow package whose
@@ -955,6 +1009,15 @@ tools:
 * tmux-continuum — automatic periodic saving and restoration of tmux sessions
 * Vim — terminal text editor with tab-page, clipboard, OSC 52, colorscheme,
   persistent-undo, and C/C++ editing configuration
+* Neovim — Lua-configured terminal editor with LSP, Tree-sitter, Telescope,
+  Git integration, integrated terminal, and OSC 52 clipboard support
+* lazy.nvim — Neovim plugin management
+* Tree-sitter CLI — building and installing syntax parsers
+* clangd — C/C++ language server and formatting
+* basedpyright — Python language intelligence and type checking
+* Ruff — Python linting and formatting
+* ripgrep — project-wide text searching
+* fd/fdfind — fast file discovery
 * Universal Ctags — source-code indexing and C/C++ symbol discovery used by the `cppsymbols` Bash helper
 * `bz` — personal Bugzilla REST API command-line client
 * `jq` — JSON processing used by `cppsymbols` and `bz`
